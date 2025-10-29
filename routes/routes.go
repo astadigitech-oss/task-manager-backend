@@ -2,14 +2,22 @@ package routes
 
 import (
 	"project-management-backend/controllers"
+	"project-management-backend/repositories"
+	"project-management-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(r *gin.Engine) {
+
+	//Inisiasi Layer
+	userRepo := repositories.NewUserRepository()
+	userService := services.NewUserService(userRepo)
+	userController := controllers.NewUserController(userService)
+
 	// User
-	r.POST("/users", controllers.CreateUser)
-	r.GET("/users", controllers.GetUsers)
+	r.POST("/users", userController.CreateUser)
+	r.GET("/users", userController.GetUsers)
 	// r.GET("/users/:id", controllers.GetUserByID)
 	// r.PUT("/users/:id", controllers.UpdateUser)
 	// r.DELETE("/users/:id", controllers.DeleteUser)
