@@ -10,6 +10,8 @@ type TaskUser struct {
 	AssignedAt time.Time `json:"assigned_at"`
 	User       User      `gorm:"foreignKey:UserID" json:"user"`
 	Task       Task      `gorm:"foreignKey:TaskID" json:"task"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
 }
 
 func (TaskUser) TableName() string { return "task_users" }

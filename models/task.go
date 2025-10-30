@@ -17,4 +17,6 @@ type Task struct {
 	Project     Project     `gorm:"foreignKey:ProjectID" json:"project"`
 	Members     []TaskUser  `gorm:"foreignKey:TaskID" json:"members"`
 	Images      []TaskImage `gorm:"foreignKey:TaskID" json:"images"` // Tambah relasi image di task
+	CreatedAt   time.Time   `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time   `gorm:"autoUpdateTime"`
 }

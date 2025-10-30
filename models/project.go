@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type Project struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	Name        string         `json:"name"`
@@ -10,4 +12,6 @@ type Project struct {
 	Members     []ProjectUser  `gorm:"foreignKey:ProjectID" json:"members"`
 	Tasks       []Task         `gorm:"foreignKey:ProjectID" json:"tasks"`
 	Images      []ProjectImage `gorm:"foreignKey:ProjectID" json:"images"` // Tambah relasi image di project
+	CreatedAt   time.Time      `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
 }

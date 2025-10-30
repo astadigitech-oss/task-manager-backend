@@ -10,6 +10,7 @@ type ErrorLog struct {
 	ItemID     uint      `json:"item_id"`
 	ErrorMsg   string    `json:"error_msg"`
 	StackTrace string    `json:"stack_trace"`
-	CreatedAt  time.Time `json:"created_at"`
 	User       User      `gorm:"foreignKey:UserID" json:"user"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
 }

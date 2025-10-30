@@ -9,6 +9,7 @@ type ActivityLog struct {
 	TableName string    `json:"table_name"`
 	ItemID    uint      `json:"item_id"`
 	Data      string    `json:"data"` // opsional - info perubahan/bio/hasil, dll
-	CreatedAt time.Time `json:"created_at"`
 	User      User      `gorm:"foreignKey:UserID" json:"user"`
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 }

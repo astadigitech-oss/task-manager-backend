@@ -7,6 +7,7 @@ type ProjectImage struct {
 	ProjectID  uint      `json:"project_id"`
 	URL        string    `json:"url"`
 	UploadedBy uint      `json:"uploaded_by"` // ID Admin uploader
-	CreatedAt  time.Time `json:"created_at"`
 	Project    Project   `gorm:"foreignKey:ProjectID" json:"project"`
+	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `gorm:"autoUpdateTime"`
 }
