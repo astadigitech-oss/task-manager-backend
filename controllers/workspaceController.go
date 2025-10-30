@@ -2,36 +2,54 @@ package controllers
 
 import (
 	"net/http"
-	"project-management-backend/config"
-	"project-management-backend/models"
-	"project-management-backend/utils"
+	"project-management-backend/services"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetWorkspaces(c *gin.Context) {
-	var workspaces []models.Workspace
-	if err := config.DB.Preload("Creator").Preload("Projects").Find(&workspaces).Error; err != nil {
-		utils.Error(0, "GET_WORKSPACES", "workspaces", 0, err.Error(), "")
+type WorkspaceController struct {
+	Service services.WorkspaceService
+}
+
+func NewWorkspaceController(service services.WorkspaceService) *WorkspaceController {
+	return &WorkspaceController{Service: service}
+}
+
+// GET /api/workspaces
+func (wc *WorkspaceController) GetWorkspaces(c *gin.Context) {
+	userIDVal, _ := c.Get("user_id")
+	userID := userIDVal.(uint)
+
+	workspaces, err := wc.Service.GetUserWorkspaces(userID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "GET_WORKSPACES", "workspaces", 0, "Get all workspaces")
+
 	c.JSON(http.StatusOK, workspaces)
 }
 
-func CreateWorkspace(c *gin.Context) {
-	var input models.Workspace
+// POST /api/workspaces
+func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
+	userIDVal, _ := c.Get("user_id")
+	roleVal, _ := c.Get("role")
+	userID := userIDVal.(uint)
+	role := roleVal.(string)
+
+	var input struct {
+		Name string `json:"name"`
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Error(0, "CREATE_WORKSPACE", "workspaces", 0, err.Error(), "")
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
 		return
 	}
-	if err := config.DB.Create(&input).Error; err != nil {
-		utils.Error(input.CreatedBy, "CREATE_WORKSPACE", "workspaces", 0, err.Error(), "")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	workspace, err := wc.Service.CreateWorkspace(userID, role, input.Name)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(input.CreatedBy, "CREATE_WORKSPACE", "workspaces", input.ID, input.Name)
-	c.JSON(http.StatusCreated, input)
+
+	c.JSON(http.StatusCreated, workspace)
 }

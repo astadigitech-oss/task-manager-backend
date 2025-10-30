@@ -50,6 +50,7 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 	}
 
 	if err := uc.service.CreateUser(user); err != nil {
+		utils.Error(0, "CREATE_USER", "users", 400, err.Error(), "Failed to create user")
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
