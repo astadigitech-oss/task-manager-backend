@@ -17,7 +17,6 @@ func ListTaskImages(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "LIST_TASK_IMAGES", "task_images", 0, "List task images")
 	c.JSON(http.StatusOK, images)
 }
 
@@ -33,6 +32,6 @@ func UploadTaskImage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(input.UploadedBy, "UPLOAD_TASK_IMAGE", "task_images", input.ID, input.URL)
+	// utils.Activity(input.UploadedBy, "UPLOAD_TASK_IMAGE", "task_images", input.ID, input.URL)
 	c.JSON(http.StatusCreated, input)
 }

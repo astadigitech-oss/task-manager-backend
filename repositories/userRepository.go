@@ -8,6 +8,7 @@ import (
 type UserRepository interface {
 	GetAllUsers() ([]models.User, error)
 	GetByEmail(email string) (*models.User, error)
+	GetByRole(role string) ([]models.User, error)
 	CreateUser(user *models.User) error
 }
 
@@ -33,6 +34,14 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 	return &user, nil
 }
 
+func (r *userRepository) GetByRole(role string) ([]models.User, error) {
+	var users []models.User
+	if err := config.DB.Where("role = ?", role).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (r *userRepository) CreateUser(user *models.User) error {
-	return config.DB.Create(user).Error
+	return config.DB.Create(user).Error // otomatis user.ID keisi
 }

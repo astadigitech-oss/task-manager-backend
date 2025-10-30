@@ -17,7 +17,6 @@ func ListProjectImages(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "LIST_PROJECT_IMAGES", "project_images", 0, "List project images")
 	c.JSON(http.StatusOK, images)
 }
 
@@ -33,6 +32,6 @@ func UploadProjectImage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(input.UploadedBy, "UPLOAD_PROJECT_IMAGE", "project_images", input.ID, input.URL)
+	// utils.Activity(input.UploadedBy, "UPLOAD_PROJECT_IMAGE", "project_images", input.ID, input.URL)
 	c.JSON(http.StatusCreated, input)
 }

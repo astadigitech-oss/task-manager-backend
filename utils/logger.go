@@ -1,22 +1,26 @@
 package utils
 
 import (
+	"encoding/json"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"time"
 )
 
 // Activity Log
-func Activity(userID uint, action, table string, itemID uint, data string) {
+func ActivityLog(userID uint, action, table string, itemID uint, before interface{}, after interface{}) error {
+	beforeJSON, _ := json.Marshal(before)
+	afterJSON, _ := json.Marshal(after)
+
 	log := models.ActivityLog{
-		UserID:    userID,
-		Action:    action,
-		TableName: table,
-		ItemID:    itemID,
-		Data:      data,
-		CreatedAt: time.Now(),
+		UserID:     userID,
+		Action:     action,
+		TableName:  table,
+		ItemID:     itemID,
+		DataBefore: string(beforeJSON),
+		DataAfter:  string(afterJSON),
 	}
-	config.DB.Create(&log)
+	return config.DB.Create(&log).Error
 }
 
 // Error Log

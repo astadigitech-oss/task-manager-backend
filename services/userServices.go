@@ -10,7 +10,9 @@ import (
 
 type UserService interface {
 	GetAllUsers() ([]models.User, error)
-	CreateUser(input models.User) error
+	CreateUser(user *models.User) error
+	GetUsersByRole(role string) ([]models.User, error)
+	GetUsersByEmail(email string) (*models.User, error)
 }
 
 type userService struct {
@@ -25,26 +27,34 @@ func (s *userService) GetAllUsers() ([]models.User, error) {
 	return s.repo.GetAllUsers()
 }
 
-func (s *userService) CreateUser(input models.User) error {
+func (s *userService) GetUsersByEmail(email string) (*models.User, error) {
+	return s.repo.GetByEmail(email)
+}
+
+func (s *userService) GetUsersByRole(role string) ([]models.User, error) {
+	return s.repo.GetByRole(role)
+}
+
+func (s *userService) CreateUser(user *models.User) error {
 	// Cek email sudah dipakai belum
-	existing, _ := s.repo.GetByEmail(input.Email)
+	existing, _ := s.repo.GetByEmail(user.Email)
 	if existing != nil && existing.Email != "" {
 		return errors.New("email sudah terdaftar")
 	}
 
 	// Hash password
-	hashed, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.New("gagal meng-hash password")
 	}
 
+	user.Password = string(hashed)
+
 	// Set default role jika kosong
-	if input.Role == "" {
-		input.Role = "member"
+	if user.Role == "" {
+		user.Role = "member"
 	}
 
-	input.Password = string(hashed)
-
-	// Simpan ke DB
-	return s.repo.CreateUser(&input)
+	// Simpan ke DB—langsung pointer!
+	return s.repo.CreateUser(user)
 }

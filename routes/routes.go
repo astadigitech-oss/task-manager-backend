@@ -15,6 +15,10 @@ func SetupRoutes(r *gin.Engine) {
 	userService := services.NewUserService(userRepo)
 	userController := controllers.NewUserController(userService)
 
+	workspaceRepo := repositories.NewWorkspaceRepository()
+	workspaceService := services.NewWorkspaceService(workspaceRepo)
+	workspaceController := controllers.NewWorkspaceController(workspaceService)
+
 	// User
 	r.POST("/users", userController.CreateUser)
 	r.GET("/users", userController.GetUsers)
@@ -23,8 +27,8 @@ func SetupRoutes(r *gin.Engine) {
 	// r.DELETE("/users/:id", controllers.DeleteUser)
 
 	// Workspace
-	r.POST("/workspaces", controllers.CreateWorkspace)
-	r.GET("/workspaces", controllers.GetWorkspaces)
+	r.POST("/workspaces", workspaceController.CreateWorkspace)
+	r.GET("/workspaces", workspaceController.GetWorkspaces)
 	// r.GET("/workspaces/:id", controllers.GetWorkspaceByID)
 	// r.PUT("/workspaces/:id", controllers.UpdateWorkspace)
 	// r.DELETE("/workspaces/:id", controllers.DeleteWorkspace)

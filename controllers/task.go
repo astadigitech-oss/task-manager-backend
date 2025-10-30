@@ -16,7 +16,6 @@ func GetTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "GET_TASKS", "tasks", 0, "Get all tasks")
 	c.JSON(http.StatusOK, tasks)
 }
 
@@ -32,6 +31,6 @@ func CreateTask(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "CREATE_TASK", "tasks", input.ID, input.Title)
+	// utils.Activity(0, "CREATE_TASK", "tasks", input.ID, input.Title)
 	c.JSON(http.StatusCreated, input)
 }

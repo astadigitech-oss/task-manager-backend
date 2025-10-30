@@ -16,7 +16,6 @@ func GetProjectMembers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(0, "GET_PROJECT_MEMBERS", "project_users", 0, "Get all project members")
 	c.JSON(http.StatusOK, members)
 }
 
@@ -32,6 +31,6 @@ func AddMemberToProject(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	utils.Activity(input.UserID, "ADD_MEMBER_TO_PROJECT", "project_users", input.ID, "User assigned to project")
+	// utils.Activity(input.UserID, "ADD_MEMBER_TO_PROJECT", "project_users", input.ID, "User assigned to project")
 	c.JSON(http.StatusCreated, input)
 }
