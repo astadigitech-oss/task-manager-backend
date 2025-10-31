@@ -4,38 +4,52 @@ import (
 	"errors"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
-	"project-management-backend/utils"
 )
 
-type WorkspaceService struct {
-	Repo repositories.WorkspaceRepository
+type WorkspaceService interface {
+	CreateWorkspace(workspace *models.Workspace, user *models.User) error
+	GetAllWorkspaces(user *models.User) ([]models.Workspace, error)
+	AddMember(workspaceID uint, userID uint, role *string) error
+	GetMembers(workspaceID uint) ([]models.WorkspaceUser, error)
+	GetByID(workspaceID uint) (*models.Workspace, error)
 }
 
-func NewWorkspaceService(repo repositories.WorkspaceRepository) WorkspaceService {
-	return WorkspaceService{Repo: repo}
+type workspaceService struct {
+	repo repositories.WorkspaceRepository
 }
 
-func (s WorkspaceService) GetUserWorkspaces(userID uint) ([]models.Workspace, error) {
-	workspaces, err := s.Repo.FindByUserID(userID)
-	if err != nil {
-		return nil, err
-	}
-	return workspaces, nil
+func NewWorkspaceService(r repositories.WorkspaceRepository) WorkspaceService {
+	return &workspaceService{repo: r}
 }
 
-func (s WorkspaceService) CreateWorkspace(userID uint, role string, name string) (*models.Workspace, error) {
-	if role != "admin" {
-		return nil, errors.New("Hanya admin yang boleh membuat workspace")
+func (s *workspaceService) CreateWorkspace(workspace *models.Workspace, user *models.User) error {
+	if user.Role != "admin" {
+		return errors.New("hanya admin yang boleh buat workspace")
 	}
+	workspace.CreatedBy = user.ID
+	return s.repo.CreateWorkspace(workspace)
+}
 
-	workspace := models.Workspace{
-		Name:      name,
-		CreatedBy: userID,
+func (s *workspaceService) GetAllWorkspaces(user *models.User) ([]models.Workspace, error) {
+	if user.Role != "admin" {
+		return nil, errors.New("hanya admin yang boleh lihat semua workspace")
 	}
+	return s.repo.GetAllWorkspaces()
+}
 
-	if err := s.Repo.Create(&workspace); err != nil {
-		utils.Error(userID, "CREATE_WORKSPACE", "workspaces", 400, err.Error(), "Failed to create workspace")
-		return nil, err
+func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string) error {
+	member := &models.WorkspaceUser{
+		WorkspaceID:     workspaceID,
+		UserID:          userID,
+		RoleInWorkspace: role,
 	}
-	return &workspace, nil
+	return s.repo.AddMember(member)
+}
+
+func (s *workspaceService) GetMembers(workspaceID uint) ([]models.WorkspaceUser, error) {
+	return s.repo.GetMembers(workspaceID)
+}
+
+func (s *workspaceService) GetByID(workspaceID uint) (*models.Workspace, error) {
+	return s.repo.GetByID(workspaceID)
 }

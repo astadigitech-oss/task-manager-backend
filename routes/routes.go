@@ -28,7 +28,10 @@ func SetupRoutes(r *gin.Engine) {
 
 	// Workspace
 	r.POST("/workspaces", workspaceController.CreateWorkspace)
-	r.GET("/workspaces", workspaceController.GetWorkspaces)
+	r.GET("/workspaces", workspaceController.ListWorkspaces)
+	r.GET("/workspaces/:workspace_id", workspaceController.DetailWorkspace)
+	r.GET("/workspaces/:workspace_id/members", workspaceController.GetMembers)
+	r.POST("/workspaces/:workspace_id/members", workspaceController.AddMember)
 	// r.GET("/workspaces/:id", controllers.GetWorkspaceByID)
 	// r.PUT("/workspaces/:id", controllers.UpdateWorkspace)
 	// r.DELETE("/workspaces/:id", controllers.DeleteWorkspace)
