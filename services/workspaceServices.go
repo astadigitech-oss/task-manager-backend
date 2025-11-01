@@ -9,9 +9,9 @@ import (
 type WorkspaceService interface {
 	CreateWorkspace(workspace *models.Workspace, user *models.User) error
 	GetAllWorkspaces(user *models.User) ([]models.Workspace, error)
-	AddMember(workspaceID uint, userID uint, role *string) error
-	GetMembers(workspaceID uint) ([]models.WorkspaceUser, error)
-	GetByID(workspaceID uint) (*models.Workspace, error)
+	AddMember(workspaceID uint, userID uint, role *string, user *models.User) error
+	GetMembers(workspaceID uint, user *models.User) ([]models.WorkspaceUser, error)
+	GetByID(workspaceID uint, user *models.User) (*models.Workspace, error)
 }
 
 type workspaceService struct {
@@ -37,7 +37,29 @@ func (s *workspaceService) GetAllWorkspaces(user *models.User) ([]models.Workspa
 	return s.repo.GetAllWorkspaces()
 }
 
-func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string) error {
+func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string, user *models.User) error {
+	if user.Role != "admin" {
+		return errors.New("hanya admin yang boleh menambah member")
+	}
+
+	_, err := s.repo.GetByID(workspaceID)
+	if err != nil {
+		return errors.New("workspace tidak ditemukan")
+	}
+
+	_, err = s.repo.GetUserByID(userID)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	isMember, err := s.repo.IsUserMember(workspaceID, userID)
+	if err != nil {
+		return errors.New("gagal memvalidasi member")
+	}
+	if isMember {
+		return errors.New("user sudah menjadi member di workspace ini")
+	}
+
 	member := &models.WorkspaceUser{
 		WorkspaceID:     workspaceID,
 		UserID:          userID,
@@ -46,10 +68,23 @@ func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string
 	return s.repo.AddMember(member)
 }
 
-func (s *workspaceService) GetMembers(workspaceID uint) ([]models.WorkspaceUser, error) {
+func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]models.WorkspaceUser, error) {
+	if user.Role != "admin" {
+		return nil, errors.New("hanya admin yang boleh melihat members")
+	}
+
+	// Validasi: Cek apakah workspace exists
+	_, err := s.repo.GetByID(workspaceID)
+	if err != nil {
+		return nil, errors.New("workspace tidak ditemukan")
+	}
+
 	return s.repo.GetMembers(workspaceID)
 }
 
-func (s *workspaceService) GetByID(workspaceID uint) (*models.Workspace, error) {
+func (s *workspaceService) GetByID(workspaceID uint, user *models.User) (*models.Workspace, error) {
+	if user.Role != "admin" {
+		return nil, errors.New("hanya admin yang boleh melihat detail workspace")
+	}
 	return s.repo.GetByID(workspaceID)
 }

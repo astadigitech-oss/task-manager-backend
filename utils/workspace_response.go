@@ -1,27 +1,46 @@
+// utils/workspace_response.go
 package utils
 
 import "project-management-backend/models"
 
 type WorkspaceResponse struct {
-	ID          uint   `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ID          uint                    `json:"id"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	CreatedBy   uint                    `json:"created_by,omitempty"`
+	Projects    []SimpleProjectResponse `json:"projects"`
+	MemberCount int                     `json:"member_count,omitempty"`
 }
 
-// Mapper single
-func ToWorkspaceResponse(user *models.Workspace) WorkspaceResponse {
+type SimpleProjectResponse struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+func ToWorkspaceResponse(workspace *models.Workspace) WorkspaceResponse {
+	// Convert projects to simple list
+	var projectResponses []SimpleProjectResponse
+	for _, project := range workspace.Projects {
+		projectResponses = append(projectResponses, SimpleProjectResponse{
+			ID:   project.ID,
+			Name: project.Name,
+		})
+	}
+
 	return WorkspaceResponse{
-		ID:          user.ID,
-		Name:        user.Name,
-		Description: user.Description,
+		ID:          workspace.ID,
+		Name:        workspace.Name,
+		Description: workspace.Description,
+		CreatedBy:   workspace.CreatedBy,
+		Projects:    projectResponses,
+		MemberCount: len(workspace.Members),
 	}
 }
 
-// Mapper list
-func ToWorkspaceResponseList(work []models.Workspace) []WorkspaceResponse {
-	resp := make([]WorkspaceResponse, len(work))
-	for i, u := range work {
-		resp[i] = ToWorkspaceResponse(&u)
+func ToWorkspaceResponseList(workspaces []models.Workspace) []WorkspaceResponse {
+	resp := make([]WorkspaceResponse, len(workspaces))
+	for i, w := range workspaces {
+		resp[i] = ToWorkspaceResponse(&w)
 	}
 	return resp
 }

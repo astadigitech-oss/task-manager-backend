@@ -91,20 +91,37 @@ func (wc *WorkspaceController) AddMember(c *gin.Context) {
 		UserID uint    `json:"user_id"`
 		Role   *string `json:"role_in_workspace"`
 	}
+
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	if err := wc.Service.AddMember(workspaceID, input.UserID, input.Role); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+
+	currentUser := GetCurrentUser(c)
+
+	if err := wc.Service.AddMember(workspaceID, input.UserID, input.Role, currentUser); err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"message": "Berhasil tambah member"})
+
+	utils.ActivityLog(currentUser.ID, "ADD_MEMBER_WORKSPACE", "workspace", workspaceID, nil, input)
+
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Member berhasil ditambahkan ke workspace",
+		Data: gin.H{
+			"workspace_id": workspaceID,
+			"user_id":      input.UserID,
+			"role":         input.Role,
+		},
+	})
 }
 
 func (wc *WorkspaceController) GetMembers(c *gin.Context) {
@@ -113,12 +130,24 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	members, err := wc.Service.GetMembers(workspaceID)
+
+	currentUser := GetCurrentUser(c)
+
+	members, err := wc.Service.GetMembers(workspaceID, currentUser)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"data": members})
+
+	// Convert to simple user list response
+	memberResponses := utils.ToMemberResponseList(members)
+
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Members workspace berhasil diambil",
+		Data:    memberResponses,
+	})
 }
 
 func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
@@ -127,35 +156,21 @@ func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	ws, err := wc.Service.GetByID(workspaceID)
+
+	currentUser := GetCurrentUser(c)
+
+	ws, err := wc.Service.GetByID(workspaceID, currentUser)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"data": ws})
+
+	respWorkspace := utils.ToWorkspaceResponse(ws)
+
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Detail workspace berhasil diambil",
+		Data:    respWorkspace,
+	})
 }
-
-// // POST /api/workspaces
-// func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
-// 	userIDVal, _ := c.Get("user_id")
-// 	roleVal, _ := c.Get("role")
-// 	userID := userIDVal.(uint)
-// 	role := roleVal.(string)
-
-// 	var input struct {
-// 		Name string `json:"name"`
-// 	}
-
-// 	if err := c.ShouldBindJSON(&input); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
-// 		return
-// 	}
-
-// 	workspace, err := wc.Service.CreateWorkspace(userID, role, input.Name)
-// 	if err != nil {
-// 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusCreated, workspace)
-// }
