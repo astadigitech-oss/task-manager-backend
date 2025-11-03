@@ -34,7 +34,6 @@ func (uc *UserController) GetUsers(c *gin.Context) {
 		Message: "User list diambil",
 		Data:    respUsers,
 	})
-	// c.JSON(http.StatusOK, utils.NewResponse(true, 200, "Data berhasil diambil", users))
 }
 
 func (uc *UserController) GetUsersByEmail(c *gin.Context) {
@@ -43,7 +42,6 @@ func (uc *UserController) GetUsersByEmail(c *gin.Context) {
 	if err != nil {
 		code := 500
 		msg := "Gagal mengambil user dengan email " + email
-		// Jika error not found, jadikan 404
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			code = 404
 			msg = "User dengan email " + email + " tidak ditemukan"
@@ -110,14 +108,12 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 		Position: input.Position,
 	}
 
-	// CreateUser expects a value (models.User), so pass user (non-pointer).
 	if err := uc.service.CreateUser(&user); err != nil {
 		utils.Error(0, "CREATE_USER", "users", 400, err.Error(), "Failed to create user")
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Langsung log gunakan struct user, tanpa query ulang
 	utils.ActivityLog(user.ID, "CREATE_USER", "users", user.ID, nil, user)
 
 	respUser := utils.ToUserResponse(&user)

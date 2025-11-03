@@ -11,7 +11,7 @@ type Project struct {
 	Workspace   Workspace      `gorm:"foreignKey:WorkspaceID" json:"workspace"`
 	Members     []ProjectUser  `gorm:"foreignKey:ProjectID" json:"members"`
 	Tasks       []Task         `gorm:"foreignKey:ProjectID" json:"tasks"`
-	Images      []ProjectImage `gorm:"foreignKey:ProjectID" json:"images"` // Tambah relasi image di project
+	Images      []ProjectImage `gorm:"foreignKey:ProjectID" json:"images"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
 }

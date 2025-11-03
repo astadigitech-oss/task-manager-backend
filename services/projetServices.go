@@ -24,7 +24,6 @@ func NewProjectService(repo repositories.ProjectRepository) ProjectService {
 }
 
 func (s *projectService) CreateProject(project *models.Project, user *models.User) error {
-	// Cek apakah user adalah member di workspace tersebut
 	isMember, err := s.repo.IsUserInWorkspace(project.WorkspaceID, user.ID)
 	if err != nil || !isMember {
 		return errors.New("hanya member workspace yang boleh buat project")
@@ -35,7 +34,6 @@ func (s *projectService) CreateProject(project *models.Project, user *models.Use
 }
 
 func (s *projectService) GetAllProjects(workspaceID uint, user *models.User) ([]models.Project, error) {
-	// Cek apakah user adalah member di workspace tersebut
 	isMember, err := s.repo.IsUserInWorkspace(workspaceID, user.ID)
 	if err != nil || !isMember {
 		return nil, errors.New("hanya member workspace yang boleh lihat projects")
@@ -50,7 +48,6 @@ func (s *projectService) GetByID(projectID uint, user *models.User) (*models.Pro
 		return nil, errors.New("project tidak ditemukan")
 	}
 
-	// Cek apakah user adalah member di project tersebut atau di workspace
 	isProjectMember, _ := s.repo.IsUserMember(projectID, user.ID)
 	isWorkspaceMember, _ := s.repo.IsUserInWorkspace(project.WorkspaceID, user.ID)
 
@@ -62,25 +59,21 @@ func (s *projectService) GetByID(projectID uint, user *models.User) (*models.Pro
 }
 
 func (s *projectService) AddMember(projectID uint, userID uint, role string, currentUser *models.User) error {
-	// Get project dulu untuk cek workspace
 	project, err := s.repo.GetByID(projectID)
 	if err != nil {
 		return errors.New("project tidak ditemukan")
 	}
 
-	// Cek apakah current user adalah member di workspace project tersebut
 	isWorkspaceMember, err := s.repo.IsUserInWorkspace(project.WorkspaceID, currentUser.ID)
 	if err != nil || !isWorkspaceMember {
 		return errors.New("hanya member workspace yang boleh menambah member project")
 	}
 
-	// Cek apakah user yang akan ditambahkan adalah member workspace
 	isTargetUserInWorkspace, err := s.repo.IsUserInWorkspace(project.WorkspaceID, userID)
 	if err != nil || !isTargetUserInWorkspace {
 		return errors.New("user harus menjadi member workspace terlebih dahulu")
 	}
 
-	// Cek apakah user sudah menjadi member project
 	isMember, err := s.repo.IsUserMember(projectID, userID)
 	if err != nil {
 		return errors.New("gagal memvalidasi member")
@@ -92,7 +85,7 @@ func (s *projectService) AddMember(projectID uint, userID uint, role string, cur
 	member := &models.ProjectUser{
 		ProjectID:     projectID,
 		UserID:        userID,
-		RoleInProject: role, // Langsung string
+		RoleInProject: role,
 	}
 	return s.repo.AddMember(member)
 }
@@ -103,7 +96,6 @@ func (s *projectService) GetMembers(projectID uint, user *models.User) ([]models
 		return nil, errors.New("project tidak ditemukan")
 	}
 
-	// Cek apakah user adalah member di project atau workspace
 	isProjectMember, _ := s.repo.IsUserMember(projectID, user.ID)
 	isWorkspaceMember, _ := s.repo.IsUserInWorkspace(project.WorkspaceID, user.ID)
 

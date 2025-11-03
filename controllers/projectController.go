@@ -89,7 +89,7 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 
 	var input struct {
 		UserID uint   `json:"user_id"`
-		Role   string `json:"role_in_project"` // string, bukan *string
+		Role   string `json:"role_in_project"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {

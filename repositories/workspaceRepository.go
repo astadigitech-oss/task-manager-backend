@@ -29,7 +29,7 @@ func (r *workspaceRepository) CreateWorkspace(workspace *models.Workspace) error
 func (r *workspaceRepository) GetAllWorkspaces() ([]models.Workspace, error) {
 	var workspaces []models.Workspace
 	err := config.DB.
-		Preload("Projects"). // Tetap preload projects
+		Preload("Projects").
 		Preload("Members").
 		Find(&workspaces).Error
 	return workspaces, err

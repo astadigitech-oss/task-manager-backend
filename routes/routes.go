@@ -55,17 +55,9 @@ func SetupRoutes(r *gin.Engine) {
 		}
 	}
 
-	// ProjectUser (assign member to project)
-	r.POST("/project-members", controllers.AddMemberToProject)
-	r.GET("/project-members", controllers.GetProjectMembers)
-
 	// Task
 	r.POST("/tasks", controllers.CreateTask)
 	r.GET("/tasks", controllers.GetTasks)
-
-	// TaskUser (assign member to task)
-	r.POST("/task-members", controllers.AddMemberToTask)
-	r.GET("/task-members", controllers.GetTaskMembers)
 
 	// ProjectImage
 	r.POST("/project-images", controllers.UploadProjectImage)

@@ -36,13 +36,11 @@ func (s *userService) GetUsersByRole(role string) ([]models.User, error) {
 }
 
 func (s *userService) CreateUser(user *models.User) error {
-	// Cek email sudah dipakai belum
 	existing, _ := s.repo.GetByEmail(user.Email)
 	if existing != nil && existing.Email != "" {
 		return errors.New("email sudah terdaftar")
 	}
 
-	// Hash password
 	hashed, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.New("gagal meng-hash password")
@@ -50,11 +48,9 @@ func (s *userService) CreateUser(user *models.User) error {
 
 	user.Password = string(hashed)
 
-	// Set default role jika kosong
 	if user.Role == "" {
 		user.Role = "member"
 	}
 
-	// Simpan ke DB—langsung pointer!
 	return s.repo.CreateUser(user)
 }

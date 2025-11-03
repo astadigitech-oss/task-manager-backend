@@ -2,8 +2,6 @@ package utils
 
 import "project-management-backend/models"
 
-// utils/response.go
-// Simple member response tanpa detail user yang berlebihan
 type SimpleMemberResponse struct {
 	UserID          uint    `json:"user_id"`
 	UserName        string  `json:"user_name"`

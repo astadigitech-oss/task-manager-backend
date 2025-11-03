@@ -7,7 +7,6 @@ type APIResponse struct {
 	Data    interface{} `json:"data"`
 }
 
-// Optionally, helper function
 func NewResponse(success bool, code int, msg string, data interface{}) APIResponse {
 	return APIResponse{
 		Success: success,

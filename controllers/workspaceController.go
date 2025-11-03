@@ -139,7 +139,6 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 		return
 	}
 
-	// Convert to simple user list response
 	memberResponses := utils.ToMemberResponseList(members)
 
 	c.JSON(200, utils.APIResponse{

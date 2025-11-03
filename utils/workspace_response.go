@@ -18,7 +18,6 @@ type SimpleProjectResponse struct {
 }
 
 func ToWorkspaceResponse(workspace *models.Workspace) WorkspaceResponse {
-	// Convert projects to simple list
 	var projectResponses []SimpleProjectResponse
 	for _, project := range workspace.Projects {
 		projectResponses = append(projectResponses, SimpleProjectResponse{

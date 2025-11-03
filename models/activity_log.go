@@ -10,7 +10,7 @@ type ActivityLog struct {
 	ItemID     uint      `json:"item_id"`
 	Data       string    `json:"data"` // opsional - info perubahan/bio/hasil, dll
 	User       User      `gorm:"foreignKey:UserID" json:"user"`
-	DataBefore string    `json:"data_before"` // simpan JSON string data sebelum aksi
+	DataBefore string    `json:"data_before"`
 	DataAfter  string    `json:"data_after"`
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `gorm:"autoUpdateTime"`

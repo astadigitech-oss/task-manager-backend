@@ -73,7 +73,6 @@ func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]mo
 		return nil, errors.New("hanya admin yang boleh melihat members")
 	}
 
-	// Validasi: Cek apakah workspace exists
 	_, err := s.repo.GetByID(workspaceID)
 	if err != nil {
 		return nil, errors.New("workspace tidak ditemukan")

@@ -23,7 +23,7 @@ type ProjectMemberResponse struct {
 	UserID        uint   `json:"user_id"`
 	UserName      string `json:"user_name"`
 	UserEmail     string `json:"user_email"`
-	RoleInProject string `json:"role_in_project"` // string, bukan *string
+	RoleInProject string `json:"role_in_project"`
 }
 
 type SimpleTaskResponse struct {
@@ -33,23 +33,21 @@ type SimpleTaskResponse struct {
 
 type ProjectImageResponse struct {
 	ID         uint   `json:"id"`
-	URL        string `json:"url"`         // Match dengan model (URL, bukan ImageURL)
-	UploadedBy uint   `json:"uploaded_by"` // Match dengan model
+	URL        string `json:"url"`
+	UploadedBy uint   `json:"uploaded_by"`
 }
 
 func ToProjectResponse(project *models.Project) ProjectResponse {
-	// Convert members
 	var memberResponses []ProjectMemberResponse
 	for _, member := range project.Members {
 		memberResponses = append(memberResponses, ProjectMemberResponse{
 			UserID:        member.User.ID,
 			UserName:      member.User.Name,
 			UserEmail:     member.User.Email,
-			RoleInProject: member.RoleInProject, // Langsung string
+			RoleInProject: member.RoleInProject,
 		})
 	}
 
-	// Convert tasks
 	var taskResponses []SimpleTaskResponse
 	for _, task := range project.Tasks {
 		taskResponses = append(taskResponses, SimpleTaskResponse{
@@ -58,13 +56,12 @@ func ToProjectResponse(project *models.Project) ProjectResponse {
 		})
 	}
 
-	// Convert images
 	var imageResponses []ProjectImageResponse
 	for _, image := range project.Images {
 		imageResponses = append(imageResponses, ProjectImageResponse{
 			ID:         image.ID,
-			URL:        image.URL,        // Match dengan field model
-			UploadedBy: image.UploadedBy, // Match dengan field model
+			URL:        image.URL,
+			UploadedBy: image.UploadedBy,
 		})
 	}
 
@@ -98,7 +95,7 @@ func ToProjectMemberResponseList(members []models.ProjectUser) []ProjectMemberRe
 			UserID:        member.User.ID,
 			UserName:      member.User.Name,
 			UserEmail:     member.User.Email,
-			RoleInProject: member.RoleInProject, // Langsung string
+			RoleInProject: member.RoleInProject,
 		})
 	}
 	return memberResponses
