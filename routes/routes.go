@@ -19,46 +19,53 @@ func SetupRoutes(r *gin.Engine) {
 	workspaceService := services.NewWorkspaceService(workspaceRepo)
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
 
+	projectRepo := repositories.NewProjectRepository()
+	projectService := services.NewProjectService(projectRepo)
+	projectController := controllers.NewProjectController(projectService)
+
 	// User
 	r.POST("/users", userController.CreateUser)
 	r.GET("/users", userController.GetUsers)
-	// r.GET("/users/:id", controllers.GetUserByID)
-	// r.PUT("/users/:id", controllers.UpdateUser)
-	// r.DELETE("/users/:id", controllers.DeleteUser)
 
 	// Workspace
-	r.POST("/workspaces", workspaceController.CreateWorkspace)
-	r.GET("/workspaces", workspaceController.ListWorkspaces)
-	r.GET("/workspaces/:workspace_id", workspaceController.DetailWorkspace)
-	r.GET("/workspaces/:workspace_id/members", workspaceController.GetMembers)
-	r.POST("/workspaces/:workspace_id/members", workspaceController.AddMember)
-	// r.GET("/workspaces/:id", controllers.GetWorkspaceByID)
-	// r.PUT("/workspaces/:id", controllers.UpdateWorkspace)
-	// r.DELETE("/workspaces/:id", controllers.DeleteWorkspace)
+	workspaces := r.Group("/workspaces")
+	{
+		workspaces.GET("", workspaceController.ListWorkspaces)
+		workspaces.POST("", workspaceController.CreateWorkspace)
+
+		workspace := workspaces.Group("/:workspace_id")
+		{
+			workspace.GET("", workspaceController.DetailWorkspace)
+			workspace.GET("/members", workspaceController.GetMembers)
+			workspace.POST("/members", workspaceController.AddMember)
+		}
+	}
 
 	// Project
-	r.POST("/projects", controllers.CreateProject)
-	r.GET("/projects", controllers.GetProjects)
-	// r.GET("/projects/:id", controllers.GetProjectByID)
-	// r.PUT("/projects/:id", controllers.UpdateProject)
-	// r.DELETE("/projects/:id", controllers.DeleteProject)
+	projects := r.Group("/workspaces/:workspace_id/projects")
+	{
+		projects.GET("", projectController.ListProjects)
+		projects.POST("", projectController.CreateProject)
+
+		project := projects.Group("/:project_id")
+		{
+			project.GET("", projectController.DetailProject)
+			project.GET("/members", projectController.GetMembers)
+			project.POST("/members", projectController.AddMember)
+		}
+	}
 
 	// ProjectUser (assign member to project)
 	r.POST("/project-members", controllers.AddMemberToProject)
 	r.GET("/project-members", controllers.GetProjectMembers)
-	// r.DELETE("/project-members/:id", controllers.RemoveMemberFromProject)
 
 	// Task
 	r.POST("/tasks", controllers.CreateTask)
 	r.GET("/tasks", controllers.GetTasks)
-	// r.GET("/tasks/:id", controllers.GetTaskByID)
-	// r.PUT("/tasks/:id", controllers.UpdateTask)
-	// r.DELETE("/tasks/:id", controllers.DeleteTask)
 
 	// TaskUser (assign member to task)
 	r.POST("/task-members", controllers.AddMemberToTask)
 	r.GET("/task-members", controllers.GetTaskMembers)
-	// r.DELETE("/task-members/:id", controllers.RemoveMemberFromTask)
 
 	// ProjectImage
 	r.POST("/project-images", controllers.UploadProjectImage)
@@ -69,8 +76,7 @@ func SetupRoutes(r *gin.Engine) {
 	r.GET("/task-images/:task_id", controllers.ListTaskImages)
 
 	// Activity Log
-	// r.GET("/activity-logs", controllers.GetActivityLogs)
 
 	// // Error Log
-	// r.GET("/error-logs", controllers.GetErrorLogs)
+
 }

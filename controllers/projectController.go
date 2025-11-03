@@ -1,113 +1,167 @@
+// controllers/project_controller.go
 package controllers
 
 import (
-	"net/http"
-	"project-management-backend/config"
 	"project-management-backend/models"
+	"project-management-backend/services"
 	"project-management-backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetProjects(c *gin.Context) {
-	userIDVal, _ := c.Get("user_id")
-	userID := userIDVal.(uint)
-	roleVal, _ := c.Get("role")
-	role := roleVal.(string)
-
-	workspaceID := c.Query("workspaceId")
-
-	var projects []models.Project
-	query := config.DB.Preload("Workspace").
-		Preload("Members.User").
-		Preload("Tasks").
-		Preload("Images")
-
-	// Cuma ambil project yang diikuti/member (non-admin)
-	if role != "admin" {
-		query = query.Joins("JOIN project_users pu ON pu.project_id = projects.id").
-			Where("pu.user_id = ?", userID)
-	}
-
-	// Filter workspace kalo dikirim
-	if workspaceID != "" {
-		query = query.Where("workspace_id = ?", workspaceID)
-	}
-
-	if err := query.Find(&projects).Error; err != nil {
-		utils.Error(userID, "GET_PROJECTS", "projects", 0, err.Error(), "")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, projects)
+type ProjectController struct {
+	Service services.ProjectService
 }
 
-func CreateProject(c *gin.Context) {
-	userIDVal, userOk := c.Get("user_id")
-	roleVal, roleOk := c.Get("role")
-	userID, idOk := userIDVal.(uint)
-	role, roleStr := roleVal.(string)
+func NewProjectController(service services.ProjectService) *ProjectController {
+	return &ProjectController{Service: service}
+}
 
-	// Validasi context
-	if !userOk || !roleOk {
-		utils.Error(userID, "GET_PROJECTS", "projects", 401, "Unauthorized", "")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	if !idOk || !roleStr {
-		utils.Error(userID, "GET_PROJECTS", "projects", 400, "Invalid user context", "")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user context"})
+func (pc *ProjectController) ListProjects(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Hanya admin yang boleh create
-	if role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Hanya admin yang boleh membuat project"})
+	currentUser := GetCurrentUser(c)
+	projects, err := pc.Service.GetAllProjects(workspaceID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	respProjects := utils.ToProjectResponseList(projects)
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Project list diambil",
+		Data:    respProjects,
+	})
+}
+
+func (pc *ProjectController) CreateProject(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	var input struct {
-		WorkspaceID uint   `json:"workspaceId"`
-		Title       string `json:"title"`
+		Name        string `json:"name"`
 		Description string `json:"description"`
-		Members     []uint `json:"members"` // ID user anggota
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	project := models.Project{
+		Name:        input.Name,
+		Description: input.Description,
+		WorkspaceID: workspaceID,
+	}
+
+	if err := pc.Service.CreateProject(&project, currentUser); err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "CREATE_PROJECT", "project", project.ID, nil, project)
+
+	respProject := utils.ToProjectResponse(&project)
+	c.JSON(201, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Project berhasil dibuat",
+		Data:    respProject,
+	})
+}
+
+func (pc *ProjectController) AddMember(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input struct {
+		UserID uint   `json:"user_id"`
+		Role   string `json:"role_in_project"` // string, bukan *string
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		utils.Error(userID, "CREATE_PROJECT", "projects", 0, err.Error(), "Invalid JSON payload")
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Buat project baru
-	project := models.Project{
-		WorkspaceID: input.WorkspaceID,
-		Name:        input.Title,
-		Description: input.Description,
-		CreatedBy:   userID,
-	}
+	currentUser := GetCurrentUser(c)
 
-	if err := config.DB.Create(&project).Error; err != nil {
-		utils.Error(userID, "CREATE_PROJECT", "projects", 0, err.Error(), "Database insert failed")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := pc.Service.AddMember(projectID, input.UserID, input.Role, currentUser); err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Tambahkan members ke pivot ProjectUser (boleh kosong)
-	for _, memberID := range input.Members {
-		projectUser := models.ProjectUser{
-			ProjectID:     project.ID,
-			UserID:        memberID,
-			RoleInProject: "", // Jabatan default null
-		}
-		config.DB.Create(&projectUser)
+	utils.ActivityLog(currentUser.ID, "ADD_MEMBER_PROJECT", "project", projectID, nil, input)
+
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Member berhasil ditambahkan ke project",
+		Data: gin.H{
+			"project_id": projectID,
+			"user_id":    input.UserID,
+			"role":       input.Role,
+		},
+	})
+}
+
+func (pc *ProjectController) GetMembers(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
 	}
 
-	// Log aktivitas
-	// utils.Activity(userID, "CREATE_PROJECT", "projects", project.ID, project.Name)
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "Project berhasil dibuat",
-		"project": project,
+	currentUser := GetCurrentUser(c)
+
+	members, err := pc.Service.GetMembers(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	memberResponses := utils.ToProjectMemberResponseList(members)
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Members project berhasil diambil",
+		Data:    memberResponses,
+	})
+}
+
+func (pc *ProjectController) DetailProject(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	project, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	respProject := utils.ToProjectResponse(project)
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Detail project berhasil diambil",
+		Data:    respProject,
 	})
 }

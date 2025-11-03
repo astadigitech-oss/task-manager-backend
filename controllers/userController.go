@@ -27,9 +27,7 @@ func (uc *UserController) GetUsers(c *gin.Context) {
 		return
 	}
 
-	userID := 1
 	respUsers := utils.ToUserResponseList(users)
-	utils.ActivityLog(uint(userID), "GET_USER", "users", 0, nil, respUsers)
 	c.JSON(200, utils.APIResponse{
 		Success: true,
 		Code:    200,
