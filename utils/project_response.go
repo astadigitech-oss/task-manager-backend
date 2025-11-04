@@ -6,17 +6,17 @@ import (
 )
 
 type ProjectResponse struct {
-	ID          uint                    `json:"id"`
-	Name        string                  `json:"name"`
-	Description string                  `json:"description"`
-	WorkspaceID uint                    `json:"workspace_id"`
-	CreatedBy   uint                    `json:"created_by"`
-	Members     []ProjectMemberResponse `json:"members"`
-	Tasks       []SimpleTaskResponse    `json:"tasks"`
-	Images      []ProjectImageResponse  `json:"images"`
-	MemberCount int                     `json:"member_count"`
-	TaskCount   int                     `json:"task_count"`
-	CreatedAt   string                  `json:"created_at"`
+	ID          uint                        `json:"id"`
+	Name        string                      `json:"name"`
+	Description string                      `json:"description"`
+	WorkspaceID uint                        `json:"workspace_id"`
+	CreatedBy   uint                        `json:"created_by"`
+	Members     []ProjectMemberResponse     `json:"members"`
+	Tasks       []SimpleTaskResponseProject `json:"tasks"`
+	Images      []ProjectImageResponse      `json:"images"`
+	MemberCount int                         `json:"member_count"`
+	TaskCount   int                         `json:"task_count"`
+	CreatedAt   string                      `json:"created_at"`
 }
 
 type ProjectMemberResponse struct {
@@ -26,7 +26,7 @@ type ProjectMemberResponse struct {
 	RoleInProject string `json:"role_in_project"`
 }
 
-type SimpleTaskResponse struct {
+type SimpleTaskResponseProject struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 }
@@ -48,9 +48,9 @@ func ToProjectResponse(project *models.Project) ProjectResponse {
 		})
 	}
 
-	var taskResponses []SimpleTaskResponse
+	var taskResponses []SimpleTaskResponseProject
 	for _, task := range project.Tasks {
-		taskResponses = append(taskResponses, SimpleTaskResponse{
+		taskResponses = append(taskResponses, SimpleTaskResponseProject{
 			ID:   task.ID,
 			Name: task.Title,
 		})

@@ -23,6 +23,10 @@ func SetupRoutes(r *gin.Engine) {
 	projectService := services.NewProjectService(projectRepo)
 	projectController := controllers.NewProjectController(projectService)
 
+	taskRepo := repositories.NewTaskRepository()
+	taskService := services.NewTaskService(taskRepo)
+	taskController := controllers.NewTaskController(taskService)
+
 	// User
 	r.POST("/users", userController.CreateUser)
 	r.GET("/users", userController.GetUsers)
@@ -56,16 +60,26 @@ func SetupRoutes(r *gin.Engine) {
 	}
 
 	// Task
-	r.POST("/tasks", controllers.CreateTask)
-	r.GET("/tasks", controllers.GetTasks)
+	tasks := r.Group("/workspaces/:workspace_id/projects/:project_id/tasks")
+	{
+		tasks.GET("", taskController.ListTasks)
+		tasks.POST("", taskController.CreateTask)
+
+		task := tasks.Group("/:task_id")
+		{
+			task.GET("", taskController.DetailTask)
+			task.GET("/members", taskController.GetMembers)
+			task.POST("/members", taskController.AddMember)
+		}
+	}
 
 	// ProjectImage
-	r.POST("/project-images", controllers.UploadProjectImage)
-	r.GET("/project-images/:project_id", controllers.ListProjectImages)
+	// r.POST("/project-images", controllers.UploadProjectImage)
+	// r.GET("/project-images/:project_id", controllers.ListProjectImages)
 
-	// TaskImage
-	r.POST("/task-images", controllers.UploadTaskImage)
-	r.GET("/task-images/:task_id", controllers.ListTaskImages)
+	// // TaskImage
+	// r.POST("/task-images", controllers.UploadTaskImage)
+	// r.GET("/task-images/:task_id", controllers.ListTaskImages)
 
 	// Activity Log
 
