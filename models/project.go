@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Project struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
@@ -14,4 +18,5 @@ type Project struct {
 	Images      []ProjectImage `gorm:"foreignKey:ProjectID" json:"images"`
 	CreatedAt   time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time      `gorm:"autoUpdateTime"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"` // Soft delete
 }

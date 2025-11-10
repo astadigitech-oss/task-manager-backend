@@ -8,7 +8,7 @@ type ProjectUser struct {
 	UserID        uint      `json:"user_id"`
 	RoleInProject string    `json:"role_in_project"`
 	User          User      `gorm:"foreignKey:UserID" json:"user"`
-	Project       Project   `gorm:"foreignKey:ProjectID" json:"project"`
+	Project       Project   `gorm:"foreignKey:ProjectID" json:"-"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 }

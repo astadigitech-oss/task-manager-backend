@@ -4,12 +4,18 @@ package repositories
 import (
 	"project-management-backend/config"
 	"project-management-backend/models"
+	"time"
+
+	"gorm.io/gorm"
 )
 
 type ProjectRepository interface {
 	CreateProject(project *models.Project) error
 	GetAllProjects(workspaceID uint) ([]models.Project, error)
 	GetByID(projectID uint) (*models.Project, error)
+	UpdateProject(project *models.Project) error
+	SoftDeleteProject(projectID uint) error
+	DeleteProject(projectID uint) error
 	AddMember(pu *models.ProjectUser) error
 	GetMembers(projectID uint) ([]models.ProjectUser, error)
 	GetUserByID(userID uint) (*models.User, error)
@@ -30,10 +36,14 @@ func (r *projectRepository) CreateProject(project *models.Project) error {
 func (r *projectRepository) GetAllProjects(workspaceID uint) ([]models.Project, error) {
 	var projects []models.Project
 	err := config.DB.
-		Preload("Members.User").
-		Preload("Tasks").
-		Preload("Images").
-		Where("workspace_id = ?", workspaceID).
+		Where("workspace_id = ? AND deleted_at IS NULL", workspaceID).
+		Preload("Members.User"). // Hanya preload user, jangan project
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, title, project_id") // Hanya field yang diperlukan
+		}).
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, url, project_id") // Hanya field yang diperlukan
+		}).
 		Find(&projects).Error
 	return projects, err
 }
@@ -41,12 +51,64 @@ func (r *projectRepository) GetAllProjects(workspaceID uint) ([]models.Project, 
 func (r *projectRepository) GetByID(projectID uint) (*models.Project, error) {
 	var project models.Project
 	err := config.DB.
+		Where("id = ? AND deleted_at IS NULL", projectID).
 		Preload("Members.User").
 		Preload("Tasks").
 		Preload("Images").
 		Preload("Workspace").
-		First(&project, projectID).Error
+		First(&project).Error
 	return &project, err
+}
+
+func (r *projectRepository) UpdateProject(project *models.Project) error {
+	return config.DB.Model(&models.Project{}).
+		Where("id = ? AND deleted_at IS NULL", project.ID).
+		Updates(map[string]interface{}{
+			"name":        project.Name,
+			"description": project.Description,
+			"updated_at":  time.Now(),
+		}).Error
+}
+
+func (r *projectRepository) SoftDeleteProject(projectID uint) error {
+	return config.DB.Model(&models.Project{}).
+		Where("id = ?", projectID).
+		Update("deleted_at", time.Now()).Error
+}
+
+func (r *projectRepository) DeleteProject(projectID uint) error {
+	return config.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Delete task_users yang terkait
+		if err := tx.Exec(`
+			DELETE tu FROM task_users tu
+			INNER JOIN tasks t ON t.id = tu.task_id
+			WHERE t.project_id = ?
+		`, projectID).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete tasks yang terkait
+		if err := tx.Where("project_id = ?", projectID).Delete(&models.Task{}).Error; err != nil {
+			return err
+		}
+
+		// 3. Delete project_images yang terkait
+		if err := tx.Where("project_id = ?", projectID).Delete(&models.ProjectImage{}).Error; err != nil {
+			return err
+		}
+
+		// 4. Delete project_users (members)
+		if err := tx.Where("project_id = ?", projectID).Delete(&models.ProjectUser{}).Error; err != nil {
+			return err
+		}
+
+		// 5. HARD DELETE project
+		if err := tx.Unscoped().Where("id = ?", projectID).Delete(&models.Project{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (r *projectRepository) AddMember(pu *models.ProjectUser) error {

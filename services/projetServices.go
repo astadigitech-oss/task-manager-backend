@@ -3,6 +3,7 @@ package services
 
 import (
 	"errors"
+	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
 )
@@ -10,6 +11,9 @@ import (
 type ProjectService interface {
 	CreateProject(project *models.Project, user *models.User) error
 	GetAllProjects(workspaceID uint, user *models.User) ([]models.Project, error)
+	UpdateProject(project *models.Project, user *models.User) error
+	SoftDeleteProject(projectID uint, user *models.User) error
+	DeleteProject(projectID uint, user *models.User) error
 	GetByID(projectID uint, user *models.User) (*models.Project, error)
 	AddMember(projectID uint, userID uint, role string, currentUser *models.User) error // role string, bukan *string
 	GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error)
@@ -56,6 +60,70 @@ func (s *projectService) GetByID(projectID uint, user *models.User) (*models.Pro
 	}
 
 	return project, nil
+}
+
+func (s *projectService) UpdateProject(project *models.Project, user *models.User) error {
+	// Cek apakah project exists
+	existingProject, err := s.repo.GetByID(project.ID)
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	// Cek apakah user adalah member di workspace project
+	isWorkspaceMember, err := s.repo.IsUserInWorkspace(existingProject.WorkspaceID, user.ID)
+	if err != nil || !isWorkspaceMember {
+		return errors.New("hanya member workspace yang boleh update project")
+	}
+
+	// Validasi: hanya creator yang bisa update
+	if existingProject.CreatedBy != user.ID {
+		return errors.New("hanya creator project yang boleh mengupdate")
+	}
+
+	return s.repo.UpdateProject(project)
+}
+
+func (s *projectService) SoftDeleteProject(projectID uint, user *models.User) error {
+	// Cek apakah project exists
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	// Cek apakah user adalah member di workspace project
+	isWorkspaceMember, err := s.repo.IsUserInWorkspace(project.WorkspaceID, user.ID)
+	if err != nil || !isWorkspaceMember {
+		return errors.New("hanya member workspace yang boleh soft delete project")
+	}
+
+	// Validasi: hanya creator yang bisa soft delete
+	if project.CreatedBy != user.ID {
+		return errors.New("hanya creator project yang boleh soft delete")
+	}
+
+	return s.repo.SoftDeleteProject(projectID)
+}
+
+func (s *projectService) DeleteProject(projectID uint, user *models.User) error {
+	// Cek apakah project exists (termasuk yang sudah di soft delete)
+	var project models.Project
+	err := config.DB.Unscoped().Where("id = ?", projectID).First(&project).Error
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	// Cek apakah user adalah member di workspace project
+	isWorkspaceMember, err := s.repo.IsUserInWorkspace(project.WorkspaceID, user.ID)
+	if err != nil || !isWorkspaceMember {
+		return errors.New("hanya member workspace yang boleh hard delete project")
+	}
+
+	// Validasi: hanya creator yang bisa hard delete
+	if project.CreatedBy != user.ID {
+		return errors.New("hanya creator project yang boleh hard delete")
+	}
+
+	return s.repo.DeleteProject(projectID)
 }
 
 func (s *projectService) AddMember(projectID uint, userID uint, role string, currentUser *models.User) error {

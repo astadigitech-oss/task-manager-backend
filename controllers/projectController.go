@@ -25,18 +25,33 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 	}
 
 	currentUser := GetCurrentUser(c)
+
 	projects, err := pc.Service.GetAllProjects(workspaceID, currentUser)
 	if err != nil {
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
 
-	respProjects := utils.ToProjectResponseList(projects)
-	c.JSON(200, utils.APIResponse{
+	// Simple response tanpa detail relations
+	var projectList []gin.H
+	for _, project := range projects {
+		projectList = append(projectList, gin.H{
+			"id":           project.ID,
+			"name":         project.Name,
+			"description":  project.Description,
+			"workspace_id": project.WorkspaceID,
+			"created_by":   project.CreatedBy,
+			"created_at":   project.CreatedAt,
+			"member_count": len(project.Members),
+			"task_count":   len(project.Tasks),
+			"image_count":  len(project.Images),
+		})
+	}
+
+	c.JSON(200, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Project list diambil",
-		Data:    respProjects,
+		Message: "List project berhasil di ambil",
+		Data:    projectList,
 	})
 }
 
@@ -72,11 +87,169 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 	utils.ActivityLog(currentUser.ID, "CREATE_PROJECT", "project", project.ID, nil, project)
 
 	respProject := utils.ToProjectResponse(&project)
-	c.JSON(201, utils.APIResponse{
+
+	c.JSON(201, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Project berhasil dibuat",
+		Message: "Project berhasil di buat",
 		Data:    respProject,
+	})
+}
+
+func (pc *ProjectController) DetailProject(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	project, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	respProject := utils.ToProjectResponse(project)
+	c.JSON(200, APIResponse{
+		Success: true,
+		Message: "Detail project berhasil diambil",
+		Data:    respProject,
+	})
+}
+
+func (pc *ProjectController) UpdateProject(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	// Get data lama sebelum update
+	oldProject, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "Project tidak ditemukan"})
+		return
+	}
+
+	project := models.Project{
+		ID:          projectID,
+		Name:        input.Name,
+		Description: input.Description,
+	}
+
+	if err := pc.Service.UpdateProject(&project, currentUser); err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get data baru setelah update
+	updatedProject, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "Gagal mengambil data project setelah update"})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "UPDATE_PROJECT", "project", projectID, oldProject, updatedProject)
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"code":    200,
+		"message": "Project berhasil diupdate",
+		"data": gin.H{
+			"id":           updatedProject.ID,
+			"name":         updatedProject.Name,
+			"description":  updatedProject.Description,
+			"workspace_id": updatedProject.WorkspaceID,
+			"created_by":   updatedProject.CreatedBy,
+			"created_at":   updatedProject.CreatedAt,
+		},
+	})
+}
+
+func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if err := pc.Service.SoftDeleteProject(projectID, currentUser); err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"code":    200,
+		"message": "Project berhasil di soft delete",
+		"data":    gin.H{"project_id": projectID},
+	})
+}
+
+func (pc *ProjectController) DeleteProject(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	// Get project info untuk show warning
+	project, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Project tidak ditemukan"})
+		return
+	}
+
+	var input struct {
+		Confirm bool `json:"confirm"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil || !input.Confirm {
+		c.JSON(400, gin.H{
+			"error":   "Konfirmasi diperlukan untuk hard delete",
+			"warning": "Tindakan ini akan menghapus PERMANEN:",
+			"data_akan_dihapus": gin.H{
+				"project":       project.Name,
+				"tasks_count":   len(project.Tasks),
+				"members_count": len(project.Members),
+				"images_count":  len(project.Images),
+			},
+			"confirmation_required": true,
+		})
+		return
+	}
+
+	if err := pc.Service.DeleteProject(projectID, currentUser); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"success": true,
+		"code":    200,
+		"message": "Project dan semua data terkait berhasil dihapus permanen",
+		"data": gin.H{
+			"project_id":      projectID,
+			"project_name":    project.Name,
+			"deleted_tasks":   len(project.Tasks),
+			"deleted_members": len(project.Members),
+			"deleted_images":  len(project.Images),
+		},
 	})
 }
 
@@ -106,10 +279,9 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 
 	utils.ActivityLog(currentUser.ID, "ADD_MEMBER_PROJECT", "project", projectID, nil, input)
 
-	c.JSON(200, utils.APIResponse{
+	c.JSON(200, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Member berhasil ditambahkan ke project",
+		Message: "Member berhasil di buat",
 		Data: gin.H{
 			"project_id": projectID,
 			"user_id":    input.UserID,
@@ -133,35 +305,20 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 		return
 	}
 
+	memberProject := make([]gin.H, 0)
+	for _, member := range members {
+		memberProject = append(memberProject, gin.H{
+			"id":         member.User.ID,
+			"name":       member.User.Name,
+			"user_email": member.User.Email,
+			"role":       member.User.Role,
+		})
+	}
+
 	memberResponses := utils.ToProjectMemberResponseList(members)
-	c.JSON(200, utils.APIResponse{
+	c.JSON(200, APIResponse{
 		Success: true,
-		Code:    200,
 		Message: "Members project berhasil diambil",
 		Data:    memberResponses,
-	})
-}
-
-func (pc *ProjectController) DetailProject(c *gin.Context) {
-	projectID, err := ParseUintParam(c, "project_id")
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	currentUser := GetCurrentUser(c)
-
-	project, err := pc.Service.GetByID(projectID, currentUser)
-	if err != nil {
-		c.JSON(403, gin.H{"error": err.Error()})
-		return
-	}
-
-	respProject := utils.ToProjectResponse(project)
-	c.JSON(200, utils.APIResponse{
-		Success: true,
-		Code:    200,
-		Message: "Detail project berhasil diambil",
-		Data:    respProject,
 	})
 }
