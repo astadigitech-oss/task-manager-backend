@@ -22,6 +22,12 @@ func GetCurrentUser(c *gin.Context) *models.User {
 	return &models.User{ID: 1, Name: "Admin", Role: "admin"} //dummy aja ini
 }
 
+type APIResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
 func ParseUintParam(c *gin.Context, paramName string) (uint, error) {
 	idStr := c.Param(paramName)
 	if idStr == "" {
@@ -44,12 +50,18 @@ func (wc *WorkspaceController) ListWorkspaces(c *gin.Context) {
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
-	respWorkspaces := utils.ToWorkspaceResponseList(workspaces)
-	c.JSON(200, utils.APIResponse{
+	workspaceList := make([]gin.H, 0)
+	for _, ws := range workspaces {
+		workspaceList = append(workspaceList, gin.H{
+			"id":   ws.ID,
+			"name": ws.Name,
+		})
+	}
+
+	c.JSON(200, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Workspace list diambil",
-		Data:    respWorkspaces,
+		Message: "List workspace berhasil di ambil",
+		Data:    workspaceList,
 	})
 }
 
@@ -77,12 +89,146 @@ func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
 	}
 	utils.ActivityLog(currentUser.ID, "CREATE_WORKSPACE", "workspace", currentUser.ID, nil, workspace)
 
-	respWorkspaces := utils.ToWorkspaceResponse(&workspace)
-	c.JSON(201, utils.APIResponse{
+	c.JSON(201, APIResponse{
+		Success: true,
+		Message: "Workspace berhasil di buat",
+		Data: gin.H{
+			"id":   workspace.ID,
+			"name": workspace.Name,
+		},
+	})
+}
+
+func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	ws, err := wc.Service.GetByID(workspaceID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Message: "Detail workspace berhasil diambil",
+		Data: gin.H{
+			"id":          ws.ID,
+			"name":        ws.Name,
+			"description": ws.Description,
+			"createdBy":   ws.CreatedBy,
+		},
+	})
+}
+
+func (wc *WorkspaceController) UpdateWorkspace(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	oldWorkspace, err := wc.Service.GetByID(workspaceID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "Workspace tidak ditemukan"})
+		return
+	}
+
+	workspace := models.Workspace{
+		ID:          workspaceID,
+		Name:        input.Name,
+		Description: input.Description,
+	}
+
+	if err := wc.Service.UpdateWorkspace(&workspace, currentUser); err != nil {
+		utils.Error(currentUser.ID, "UPDATE_WORKSPACE", "workspaces", 403, err.Error(), "Failed to update workspace")
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get updated workspace
+	updatedWorkspace, err := wc.Service.GetByID(workspaceID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "Gagal mengambil data workspace setelah update"})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "UPDATE_WORKSPACE", "workspace", workspaceID, oldWorkspace, workspace)
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Message: "Workspace berhasil diupdate",
+		Data: gin.H{
+			"id":          updatedWorkspace.ID,
+			"name":        updatedWorkspace.Name,
+			"description": updatedWorkspace.Description,
+		},
+	})
+}
+
+func (wc *WorkspaceController) SoftDeleteWorkspace(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if err := wc.Service.SoftDeleteWorkspace(workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "SOFT_DELETE_WORKSPACE", "workspaces", 403, err.Error(), "Failed to soft delete workspace")
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "SOFT_DELETE_WORKSPACE", "workspace", workspaceID, nil, nil)
+
+	c.JSON(200, utils.APIResponse{
 		Success: true,
 		Code:    200,
-		Message: "Workspace berhasil di buat",
-		Data:    respWorkspaces,
+		Message: "Workspace berhasil di soft delete",
+		Data:    gin.H{"workspace_id": workspaceID},
+	})
+}
+
+func (wc *WorkspaceController) DeleteWorkspace(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if err := wc.Service.DeleteWorkspace(workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "DELETE_WORKSPACE", "workspaces", 403, err.Error(), "Failed to delete workspace")
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "DELETE_WORKSPACE", "workspace", workspaceID, nil, nil)
+
+	c.JSON(200, utils.APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Workspace berhasil dihapus permanen",
+		Data:    gin.H{"workspace_id": workspaceID},
 	})
 }
 
@@ -110,12 +256,9 @@ func (wc *WorkspaceController) AddMember(c *gin.Context) {
 		return
 	}
 
-	utils.ActivityLog(currentUser.ID, "ADD_MEMBER_WORKSPACE", "workspace", workspaceID, nil, input)
-
-	c.JSON(200, utils.APIResponse{
+	c.JSON(201, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Member berhasil ditambahkan ke workspace",
+		Message: "Member berhasil di tambahkan ke workspace",
 		Data: gin.H{
 			"workspace_id": workspaceID,
 			"user_id":      input.UserID,
@@ -139,37 +282,18 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 		return
 	}
 
-	memberResponses := utils.ToMemberResponseList(members)
-
-	c.JSON(200, utils.APIResponse{
-		Success: true,
-		Code:    200,
-		Message: "Members workspace berhasil diambil",
-		Data:    memberResponses,
-	})
-}
-
-func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
-	workspaceID, err := ParseUintParam(c, "workspace_id")
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
+	memberList := make([]gin.H, 0)
+	for _, member := range members {
+		memberList = append(memberList, gin.H{
+			"id":   member.User.ID,
+			"name": member.User.Name,
+			"role": member.User.Role, // role_in_workspace
+		})
 	}
 
-	currentUser := GetCurrentUser(c)
-
-	ws, err := wc.Service.GetByID(workspaceID, currentUser)
-	if err != nil {
-		c.JSON(403, gin.H{"error": err.Error()})
-		return
-	}
-
-	respWorkspace := utils.ToWorkspaceResponse(ws)
-
-	c.JSON(200, utils.APIResponse{
+	c.JSON(200, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Detail workspace berhasil diambil",
-		Data:    respWorkspace,
+		Message: "List member berhasil di ambil",
+		Data:    memberList,
 	})
 }

@@ -31,11 +31,6 @@ func main() {
 	}
 
 	router := gin.Default()
-	router.Use(func(c *gin.Context) {
-		c.Set("user_id", uint(1)) // Ganti 1 ke admin/user lain sesuai skenario test
-		c.Set("role", "admin")    // Atau "member"
-		c.Next()
-	})
 	routes.SetupRoutes(router)
 	router.Run(":8080")
 }

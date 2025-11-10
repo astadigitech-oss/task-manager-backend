@@ -40,6 +40,11 @@ func SetupRoutes(r *gin.Engine) {
 		workspace := workspaces.Group("/:workspace_id")
 		{
 			workspace.GET("", workspaceController.DetailWorkspace)
+			workspace.PUT("", workspaceController.UpdateWorkspace)
+			workspace.DELETE("", workspaceController.SoftDeleteWorkspace)
+
+			workspace.DELETE("/permanent", workspaceController.DeleteWorkspace)
+
 			workspace.GET("/members", workspaceController.GetMembers)
 			workspace.POST("/members", workspaceController.AddMember)
 		}
