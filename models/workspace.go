@@ -14,6 +14,6 @@ type Workspace struct {
 	CreatedAt   time.Time       `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time       `gorm:"autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt  `gorm:"index" json:"deleted_at,omitempty"`
-	Members     []WorkspaceUser `gorm:"foreignKey:WorkspaceID" json:"members"` // keaggotaan lewat pivot
-	Projects    []Project       `gorm:"foreignKey:WorkspaceID" json:"projects"`
+	Members     []WorkspaceUser `gorm:"foreignKey:WorkspaceID;constraint:OnDelete:CASCADE" json:"members"`
+	Projects    []Project       `gorm:"foreignKey:WorkspaceID;constraint:OnDelete:CASCADE" json:"projects"`
 }

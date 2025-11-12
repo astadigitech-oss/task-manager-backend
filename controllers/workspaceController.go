@@ -24,6 +24,7 @@ func GetCurrentUser(c *gin.Context) *models.User {
 
 type APIResponse struct {
 	Success bool        `json:"success"`
+	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }
@@ -60,6 +61,7 @@ func (wc *WorkspaceController) ListWorkspaces(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "List workspace berhasil di ambil",
 		Data:    workspaceList,
 	})
@@ -91,6 +93,7 @@ func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
 
 	c.JSON(201, APIResponse{
 		Success: true,
+		Code:    201,
 		Message: "Workspace berhasil di buat",
 		Data: gin.H{
 			"id":   workspace.ID,
@@ -116,6 +119,7 @@ func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "Detail workspace berhasil diambil",
 		Data: gin.H{
 			"id":          ws.ID,
@@ -173,6 +177,7 @@ func (wc *WorkspaceController) UpdateWorkspace(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "Workspace berhasil diupdate",
 		Data: gin.H{
 			"id":          updatedWorkspace.ID,
@@ -216,6 +221,29 @@ func (wc *WorkspaceController) DeleteWorkspace(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
+	workspace, err := wc.Service.GetByID(workspaceID, currentUser)
+	if err != nil {
+		c.JSON(404, gin.H{"error": "Workspace tidak ditemukan"})
+		return
+	}
+	var input struct {
+		Confirm bool `json:"confirm"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil || !input.Confirm {
+		c.JSON(400, gin.H{
+			"error":   "Konfirmasi diperlukan untuk hard delete workspace",
+			"warning": "Tindakan ini akan menghapus PERMANEN semua data:",
+			"data_akan_dihapus": gin.H{
+				"workspace":      workspace.Name,
+				"projects_count": len(workspace.Projects),
+				"members_count":  len(workspace.Members),
+				// "total_tasks": wc.countTotalTasks(workspace.Projects),
+			},
+			"confirmation_required": true,
+		})
+		return
+	}
+
 	if err := wc.Service.DeleteWorkspace(workspaceID, currentUser); err != nil {
 		utils.Error(currentUser.ID, "DELETE_WORKSPACE", "workspaces", 403, err.Error(), "Failed to delete workspace")
 		c.JSON(403, gin.H{"error": err.Error()})
@@ -224,11 +252,16 @@ func (wc *WorkspaceController) DeleteWorkspace(c *gin.Context) {
 
 	utils.ActivityLog(currentUser.ID, "DELETE_WORKSPACE", "workspace", workspaceID, nil, nil)
 
-	c.JSON(200, utils.APIResponse{
+	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
 		Message: "Workspace berhasil dihapus permanen",
-		Data:    gin.H{"workspace_id": workspaceID},
+		Data: gin.H{
+			"workspace_id":     workspaceID,
+			"workspace_name":   workspace.Name,
+			"deleted_projects": len(workspace.Projects),
+			"deleted_members":  len(workspace.Members),
+		},
 	})
 }
 
@@ -258,6 +291,7 @@ func (wc *WorkspaceController) AddMember(c *gin.Context) {
 
 	c.JSON(201, APIResponse{
 		Success: true,
+		Code:    201,
 		Message: "Member berhasil di tambahkan ke workspace",
 		Data: gin.H{
 			"workspace_id": workspaceID,
@@ -293,6 +327,7 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "List member berhasil di ambil",
 		Data:    memberList,
 	})

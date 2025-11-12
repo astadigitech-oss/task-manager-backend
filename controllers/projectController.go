@@ -40,8 +40,6 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 			"name":         project.Name,
 			"description":  project.Description,
 			"workspace_id": project.WorkspaceID,
-			"created_by":   project.CreatedBy,
-			"created_at":   project.CreatedAt,
 			"member_count": len(project.Members),
 			"task_count":   len(project.Tasks),
 			"image_count":  len(project.Images),
@@ -50,6 +48,7 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "List project berhasil di ambil",
 		Data:    projectList,
 	})
@@ -90,6 +89,7 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 
 	c.JSON(201, APIResponse{
 		Success: true,
+		Code:    201,
 		Message: "Project berhasil di buat",
 		Data:    respProject,
 	})
@@ -113,6 +113,7 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 	respProject := utils.ToProjectResponse(project)
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "Detail project berhasil diambil",
 		Data:    respProject,
 	})
@@ -163,17 +164,15 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 
 	utils.ActivityLog(currentUser.ID, "UPDATE_PROJECT", "project", projectID, oldProject, updatedProject)
 
-	c.JSON(200, gin.H{
-		"success": true,
-		"code":    200,
-		"message": "Project berhasil diupdate",
-		"data": gin.H{
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Project berhasil di update",
+		Data: gin.H{
 			"id":           updatedProject.ID,
 			"name":         updatedProject.Name,
 			"description":  updatedProject.Description,
 			"workspace_id": updatedProject.WorkspaceID,
-			"created_by":   updatedProject.CreatedBy,
-			"created_at":   updatedProject.CreatedAt,
 		},
 	})
 }
@@ -192,11 +191,11 @@ func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"success": true,
-		"code":    200,
-		"message": "Project berhasil di soft delete",
-		"data":    gin.H{"project_id": projectID},
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Project berhasil di soft delete",
+		Data:    gin.H{"project_id": projectID},
 	})
 }
 
@@ -209,7 +208,6 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
-	// Get project info untuk show warning
 	project, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "Project tidak ditemukan"})
@@ -239,11 +237,11 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
-		"success": true,
-		"code":    200,
-		"message": "Project dan semua data terkait berhasil dihapus permanen",
-		"data": gin.H{
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Project dan semua data terkait berhasil dihapus permanen",
+		Data: gin.H{
 			"project_id":      projectID,
 			"project_name":    project.Name,
 			"deleted_tasks":   len(project.Tasks),
@@ -281,6 +279,7 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "Member berhasil di buat",
 		Data: gin.H{
 			"project_id": projectID,
@@ -315,10 +314,10 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 		})
 	}
 
-	memberResponses := utils.ToProjectMemberResponseList(members)
 	c.JSON(200, APIResponse{
 		Success: true,
+		Code:    200,
 		Message: "Members project berhasil diambil",
-		Data:    memberResponses,
+		Data:    memberProject,
 	})
 }

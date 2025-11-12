@@ -7,7 +7,7 @@ type WorkspaceUser struct {
 	WorkspaceID     uint      `json:"workspace_id"`
 	UserID          uint      `json:"user_id"`
 	RoleInWorkspace *string   `json:"role_in_workspace"` // granular
-	Workspace       Workspace `gorm:"foreignKey:WorkspaceID" json:"workspaces"`
+	Workspace       Workspace `gorm:"foreignKey:WorkspaceID;constraint:OnDelete:CASCADE" json:"workspaces"`
 	User            User      `gorm:"foreignKey:UserID" json:"user"`
 	CreatedAt       time.Time `gorm:"autoCreateTime"`
 	UpdatedAt       time.Time `gorm:"autoUpdateTime"`

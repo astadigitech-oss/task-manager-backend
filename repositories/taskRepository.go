@@ -3,12 +3,18 @@ package repositories
 import (
 	"project-management-backend/config"
 	"project-management-backend/models"
+	"time"
+
+	"gorm.io/gorm"
 )
 
 type TaskRepository interface {
 	CreateTask(task *models.Task) error
 	GetAllTasks(projectID uint, workspaceID uint) ([]models.Task, error)
 	GetByID(taskID uint, workspaceID uint) (*models.Task, error)
+	UpdateTask(task *models.Task) error
+	SoftDeleteTask(taskID uint) error
+	DeleteTask(taskID uint) error // Hard delete
 	AddMember(tu *models.TaskUser) error
 	GetMembers(taskID uint) ([]models.TaskUser, error)
 	GetUserByID(userID uint) (*models.User, error)
@@ -30,10 +36,12 @@ func (r *taskRepository) CreateTask(task *models.Task) error {
 func (r *taskRepository) GetAllTasks(projectID uint, workspaceID uint) ([]models.Task, error) {
 	var tasks []models.Task
 	err := config.DB.
+		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL", projectID). // Specify table
 		Preload("Members.User").
 		Preload("Images").
-		Joins("JOIN projects ON projects.id = tasks.project_id").
-		Where("tasks.project_id = ? AND projects.workspace_id = ?", projectID, workspaceID).
+		Preload("Project", func(db *gorm.DB) *gorm.DB {
+			return db.Where("projects.deleted_at IS NULL") // Filter project yang tidak di soft delete
+		}).
 		Find(&tasks).Error
 	return tasks, err
 }
@@ -41,13 +49,59 @@ func (r *taskRepository) GetAllTasks(projectID uint, workspaceID uint) ([]models
 func (r *taskRepository) GetByID(taskID uint, workspaceID uint) (*models.Task, error) {
 	var task models.Task
 	err := config.DB.
+		Where("tasks.id = ? AND tasks.deleted_at IS NULL", taskID). // Specify table
 		Preload("Members.User").
 		Preload("Images").
-		Preload("Project").
-		Joins("JOIN projects ON projects.id = tasks.project_id").
-		Where("tasks.id = ? AND projects.workspace_id = ?", taskID, workspaceID).
+		Preload("Project", func(db *gorm.DB) *gorm.DB {
+			return db.Where("projects.deleted_at IS NULL") // Filter project yang tidak di soft delete
+		}).
+		Preload("Project.Workspace", func(db *gorm.DB) *gorm.DB {
+			return db.Where("workspaces.deleted_at IS NULL") // Filter workspace yang tidak di soft delete
+		}).
 		First(&task).Error
 	return &task, err
+}
+
+func (r *taskRepository) UpdateTask(task *models.Task) error {
+	return config.DB.Model(&models.Task{}).
+		Where("id = ? AND deleted_at IS NULL", task.ID).
+		Updates(map[string]interface{}{
+			"title":       task.Title,
+			"description": task.Description,
+			"status":      task.Status,
+			"priority":    task.Priority,
+			"start_date":  task.StartDate,
+			"due_date":    task.DueDate,
+			"notes":       task.Notes,
+			"updated_at":  time.Now(),
+		}).Error
+}
+
+func (r *taskRepository) SoftDeleteTask(taskID uint) error {
+	return config.DB.Model(&models.Task{}).
+		Where("id = ?", taskID).
+		Update("deleted_at", time.Now()).Error
+}
+
+func (r *taskRepository) DeleteTask(taskID uint) error {
+	return config.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Delete task_users (members)
+		if err := tx.Where("task_id = ?", taskID).Delete(&models.TaskUser{}).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete task_images
+		if err := tx.Where("task_id = ?", taskID).Delete(&models.TaskImage{}).Error; err != nil {
+			return err
+		}
+
+		// 3. HARD DELETE task
+		if err := tx.Unscoped().Where("id = ?", taskID).Delete(&models.Task{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (r *taskRepository) AddMember(tu *models.TaskUser) error {

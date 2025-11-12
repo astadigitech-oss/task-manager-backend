@@ -59,6 +59,11 @@ func SetupRoutes(r *gin.Engine) {
 		project := projects.Group("/:project_id")
 		{
 			project.GET("", projectController.DetailProject)
+			project.PUT("", projectController.UpdateProject)
+			project.DELETE("", projectController.SoftDeleteProject)
+
+			project.DELETE("/permanent", projectController.DeleteProject)
+
 			project.GET("/members", projectController.GetMembers)
 			project.POST("/members", projectController.AddMember)
 		}
@@ -73,6 +78,11 @@ func SetupRoutes(r *gin.Engine) {
 		task := tasks.Group("/:task_id")
 		{
 			task.GET("", taskController.DetailTask)
+			task.PUT("", taskController.UpdateTask)
+			task.DELETE("", taskController.SoftDeleteTask)
+
+			task.DELETE("/permanent", taskController.DeleteTask)
+
 			task.GET("/members", taskController.GetMembers)
 			task.POST("/members", taskController.AddMember)
 		}

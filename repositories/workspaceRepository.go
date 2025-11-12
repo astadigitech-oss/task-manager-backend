@@ -4,8 +4,6 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type WorkspaceRepository interface {
@@ -69,52 +67,7 @@ func (r *workspaceRepository) SoftDeleteWorkspace(workspaceID uint) error {
 }
 
 func (r *workspaceRepository) DeleteWorkspace(workspaceID uint) error {
-	return config.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. Delete task_users yang terkait
-		if err := tx.Exec(`
-            DELETE tu FROM task_users tu
-            INNER JOIN tasks t ON t.id = tu.task_id
-            INNER JOIN projects p ON p.id = t.project_id
-            WHERE p.workspace_id = ?
-        `, workspaceID).Error; err != nil {
-			return err
-		}
-
-		// 2. Delete tasks yang terkait
-		if err := tx.Exec(`
-            DELETE t FROM tasks t
-            INNER JOIN projects p ON p.id = t.project_id
-            WHERE p.workspace_id = ?
-        `, workspaceID).Error; err != nil {
-			return err
-		}
-
-		// 3. Delete project_users yang terkait
-		if err := tx.Exec(`
-            DELETE pu FROM project_users pu
-            INNER JOIN projects p ON p.id = pu.project_id
-            WHERE p.workspace_id = ?
-        `, workspaceID).Error; err != nil {
-			return err
-		}
-
-		// 4. Delete projects yang terkait
-		if err := tx.Where("workspace_id = ?", workspaceID).Delete(&models.Project{}).Error; err != nil {
-			return err
-		}
-
-		// 5. Delete workspace_users (members)
-		if err := tx.Where("workspace_id = ?", workspaceID).Delete(&models.WorkspaceUser{}).Error; err != nil {
-			return err
-		}
-
-		// 6. Sekarang baru delete workspace
-		if err := tx.Unscoped().Where("id = ?", workspaceID).Delete(&models.Workspace{}).Error; err != nil {
-			return err
-		}
-
-		return nil
-	})
+	return config.DB.Unscoped().Where("id = ?", workspaceID).Delete(&models.Workspace{}).Error
 }
 
 func (r *workspaceRepository) AddMember(wu *models.WorkspaceUser) error {
