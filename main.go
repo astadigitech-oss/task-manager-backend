@@ -32,5 +32,6 @@ func main() {
 
 	router := gin.Default()
 	routes.SetupRoutes(router)
+	router.Static("/uploads", "./uploads")
 	router.Run(":8080")
 }

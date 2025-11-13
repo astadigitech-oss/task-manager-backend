@@ -23,6 +23,10 @@ func SetupRoutes(r *gin.Engine) {
 	projectService := services.NewProjectService(projectRepo)
 	projectController := controllers.NewProjectController(projectService)
 
+	projectImageRepo := repositories.NewProjectImageRepository()
+	projectImageService := services.NewProjectImageService(projectImageRepo)
+	projectImageController := controllers.NewProjectImageController(projectImageService)
+
 	taskRepo := repositories.NewTaskRepository()
 	taskService := services.NewTaskService(taskRepo)
 	taskController := controllers.NewTaskController(taskService)
@@ -66,6 +70,13 @@ func SetupRoutes(r *gin.Engine) {
 
 			project.GET("/members", projectController.GetMembers)
 			project.POST("/members", projectController.AddMember)
+
+			images := project.Group("/images")
+			{
+				images.GET("", projectImageController.GetProjectImages)
+				images.POST("", projectImageController.UploadProjectImage)
+				images.DELETE("/:image_id", projectImageController.DeleteProjectImage)
+			}
 		}
 	}
 
