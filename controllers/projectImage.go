@@ -3,6 +3,7 @@ package controllers
 
 import (
 	"project-management-backend/services"
+	"project-management-backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -72,6 +73,8 @@ func (pic *ProjectImageController) UploadProjectImage(c *gin.Context) {
 		return
 	}
 
+	utils.ActivityLog(currentUser.ID, "CREATE_PROJECT_IMAGE", "project", projectID, nil, projectImage)
+
 	c.JSON(201, APIResponse{
 		Success: true,
 		Code:    201,
@@ -99,6 +102,8 @@ func (pic *ProjectImageController) DeleteProjectImage(c *gin.Context) {
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
+
+	utils.ActivityLog(currentUser.ID, "DELETE_PROJECT_IMAGE", "project_image", imageID, nil, "deleted image")
 
 	c.JSON(200, APIResponse{
 		Success: true,

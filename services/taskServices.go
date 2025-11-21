@@ -2,8 +2,11 @@ package services
 
 import (
 	"errors"
+	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+
+	"gorm.io/gorm"
 )
 
 type TaskService interface {
@@ -51,25 +54,43 @@ func (s *taskService) GetAllTasks(projectID uint, workspaceID uint, user *models
 		return nil, errors.New("project tidak ditemukan di workspace ini")
 	}
 
-	isMember, err := s.repo.IsUserInProject(projectID, user.ID)
-	if err != nil || !isMember {
+	if user.Role == "admin" {
+		return s.repo.GetAllTasks(projectID)
+	}
+
+	isProjectMember, err := s.repo.IsUserInProject(projectID, user.ID)
+	if err != nil || !isProjectMember {
 		return nil, errors.New("hanya member project yang boleh lihat tasks")
 	}
 
-	return s.repo.GetAllTasks(projectID, workspaceID)
+	isProjectAdmin, err := s.isProjectAdmin(projectID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if isProjectAdmin {
+		return s.repo.GetAllTasks(projectID)
+	} else {
+		return s.repo.GetTasksByUserID(projectID, user.ID)
+	}
 }
 
 func (s *taskService) GetByID(taskID uint, workspaceID uint, user *models.User) (*models.Task, error) {
-	task, err := s.repo.GetByID(taskID, workspaceID)
+	task, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return nil, errors.New("task tidak ditemukan")
 	}
 
-	isTaskMember, _ := s.repo.IsUserMember(taskID, user.ID)
-	isProjectMember, _ := s.repo.IsUserInProject(task.ProjectID, user.ID)
+	if task.Project.WorkspaceID != workspaceID {
+		return nil, errors.New("task tidak ditemukan di workspace ini")
+	}
 
-	if !isTaskMember && !isProjectMember {
-		return nil, errors.New("akses ditolak untuk task ini")
+	if user.Role != "admin" {
+		isTaskMember, _ := s.repo.IsUserMember(taskID, user.ID)
+		isProjectMember, _ := s.repo.IsUserInProject(task.ProjectID, user.ID)
+
+		if !isTaskMember && !isProjectMember {
+			return nil, errors.New("akses ditolak untuk task ini")
+		}
 	}
 
 	return task, nil
@@ -90,13 +111,11 @@ func (s *taskService) UpdateTask(task *models.Task, workspaceID uint, user *mode
 }
 
 func (s *taskService) SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error {
-	// Cek apakah task exists dan valid workspace
 	task, err := s.GetByID(taskID, workspaceID, user)
 	if err != nil {
 		return errors.New("task tidak ditemukan")
 	}
 
-	// Cek apakah user adalah member di project task
 	isProjectMember, err := s.repo.IsUserInProject(task.ProjectID, user.ID)
 	if err != nil || !isProjectMember {
 		return errors.New("hanya member project yang boleh soft delete task")
@@ -106,13 +125,11 @@ func (s *taskService) SoftDeleteTask(taskID uint, workspaceID uint, user *models
 }
 
 func (s *taskService) DeleteTask(taskID uint, workspaceID uint, user *models.User) error {
-	// Cek apakah task exists (gunakan GetByID untuk validasi workspace)
 	task, err := s.GetByID(taskID, workspaceID, user)
 	if err != nil {
 		return errors.New("task tidak ditemukan")
 	}
 
-	// Cek apakah user adalah member di project task
 	isProjectMember, err := s.repo.IsUserInProject(task.ProjectID, user.ID)
 	if err != nil || !isProjectMember {
 		return errors.New("hanya member project yang boleh hard delete task")
@@ -122,7 +139,7 @@ func (s *taskService) DeleteTask(taskID uint, workspaceID uint, user *models.Use
 }
 
 func (s *taskService) AddMember(taskID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error {
-	task, err := s.repo.GetByID(taskID, workspaceID)
+	task, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return errors.New("task tidak ditemukan")
 	}
@@ -155,7 +172,7 @@ func (s *taskService) AddMember(taskID uint, workspaceID uint, userID uint, role
 }
 
 func (s *taskService) GetMembers(taskID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error) {
-	task, err := s.repo.GetByID(taskID, workspaceID)
+	task, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return nil, errors.New("task tidak ditemukan")
 	}
@@ -168,4 +185,20 @@ func (s *taskService) GetMembers(taskID uint, workspaceID uint, user *models.Use
 	}
 
 	return s.repo.GetMembers(taskID)
+}
+
+func (s *taskService) isProjectAdmin(projectID uint, userID uint) (bool, error) {
+	var projectUser models.ProjectUser
+	err := config.DB.
+		Where("project_id = ? AND user_id = ?", projectID, userID).
+		First(&projectUser).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return projectUser.RoleInProject == "admin", nil
 }

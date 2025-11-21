@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
@@ -19,11 +20,13 @@ type WorkspaceService interface {
 }
 
 type workspaceService struct {
-	repo repositories.WorkspaceRepository
+	repo        repositories.WorkspaceRepository
+	projectRepo repositories.ProjectRepository
+	taskRepo    repositories.TaskRepository
 }
 
-func NewWorkspaceService(r repositories.WorkspaceRepository) WorkspaceService {
-	return &workspaceService{repo: r}
+func NewWorkspaceService(r repositories.WorkspaceRepository, p repositories.ProjectRepository, t repositories.TaskRepository) WorkspaceService {
+	return &workspaceService{repo: r, projectRepo: p, taskRepo: t}
 }
 
 func (s *workspaceService) CreateWorkspace(workspace *models.Workspace, user *models.User) error {
@@ -31,27 +34,50 @@ func (s *workspaceService) CreateWorkspace(workspace *models.Workspace, user *mo
 		return errors.New("hanya admin yang boleh buat workspace")
 	}
 	workspace.CreatedBy = user.ID
-	return s.repo.CreateWorkspace(workspace)
+
+	if err := s.repo.CreateWorkspace(workspace); err != nil {
+		return err
+	}
+
+	ownerRole := "owner"
+	creatorMember := &models.WorkspaceUser{
+		WorkspaceID:     workspace.ID,
+		UserID:          user.ID,
+		RoleInWorkspace: &ownerRole,
+	}
+
+	if err := s.repo.AddMember(creatorMember); err != nil {
+		s.repo.DeleteWorkspace(workspace.ID)
+		return errors.New("gagal menambahkan creator sebagai member workspace")
+	}
+
+	return nil
 }
 
 func (s *workspaceService) GetAllWorkspaces(user *models.User) ([]models.Workspace, error) {
-	if user.Role != "admin" {
-		return nil, errors.New("hanya admin yang boleh lihat semua workspace")
+	if user.Role == "admin" {
+		return s.repo.GetAllWorkspaces()
 	}
-	return s.repo.GetAllWorkspaces()
+	return s.repo.GetWorkspacesByUserID(user.ID)
 }
 
 func (s *workspaceService) GetByID(workspaceID uint, user *models.User) (*models.Workspace, error) {
-	if user.Role != "admin" {
-		return nil, errors.New("hanya admin yang boleh melihat detail workspace")
+	workspace, err := s.repo.GetByID(workspaceID)
+	if err != nil {
+		return nil, errors.New("workspace tidak ditemukan")
 	}
-	return s.repo.GetByID(workspaceID)
+
+	if user.Role != "admin" {
+		isMember, err := s.repo.IsUserMember(workspaceID, user.ID)
+		if err != nil || !isMember {
+			return nil, errors.New("akses ditolak untuk workspace ini")
+		}
+	}
+
+	return workspace, nil
 }
 
 func (s *workspaceService) UpdateWorkspace(workspace *models.Workspace, user *models.User) error {
-	if user.Role != "admin" {
-		return errors.New("hanya admin yang boleh update workspace")
-	}
 
 	existingWorkspace, err := s.repo.GetByID(workspace.ID)
 	if err != nil {
@@ -66,10 +92,6 @@ func (s *workspaceService) UpdateWorkspace(workspace *models.Workspace, user *mo
 }
 
 func (s *workspaceService) SoftDeleteWorkspace(workspaceID uint, user *models.User) error {
-	if user.Role != "admin" {
-		return errors.New("hanya admin yang boleh soft delete workspace")
-	}
-
 	workspace, err := s.repo.GetByID(workspaceID)
 	if err != nil {
 		return errors.New("workspace tidak ditemukan")
@@ -79,13 +101,25 @@ func (s *workspaceService) SoftDeleteWorkspace(workspaceID uint, user *models.Us
 		return errors.New("hanya creator workspace yang boleh soft delete")
 	}
 
+	projects, err := s.projectRepo.GetProjectsByWorkspace(workspaceID)
+	if err != nil {
+		return errors.New("gagal mengambil data projects")
+	}
+
+	for _, project := range projects {
+		if err := s.projectRepo.SoftDeleteProject(project.ID); err != nil {
+			return fmt.Errorf("gagal soft delete project %d: %w", project.ID, err)
+		}
+
+		if err := s.taskRepo.SoftDeleteAllTasksInProject(project.ID); err != nil {
+			return fmt.Errorf("gagal soft delete tasks project %d: %w", project.ID, err)
+		}
+	}
+
 	return s.repo.SoftDeleteWorkspace(workspaceID)
 }
 
 func (s *workspaceService) DeleteWorkspace(workspaceID uint, user *models.User) error {
-	if user.Role != "admin" {
-		return errors.New("hanya admin yang boleh hard delete workspace")
-	}
 
 	var workspace models.Workspace
 	err := config.DB.Unscoped().Where("id = ?", workspaceID).First(&workspace).Error
@@ -101,9 +135,6 @@ func (s *workspaceService) DeleteWorkspace(workspaceID uint, user *models.User) 
 }
 
 func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string, user *models.User) error {
-	if user.Role != "admin" {
-		return errors.New("hanya admin yang boleh menambah member")
-	}
 
 	_, err := s.repo.GetByID(workspaceID)
 	if err != nil {
@@ -132,9 +163,6 @@ func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string
 }
 
 func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]models.WorkspaceUser, error) {
-	if user.Role != "admin" {
-		return nil, errors.New("hanya admin yang boleh melihat members")
-	}
 
 	_, err := s.repo.GetByID(workspaceID)
 	if err != nil {

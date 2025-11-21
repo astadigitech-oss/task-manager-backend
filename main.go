@@ -2,14 +2,18 @@ package main
 
 import (
 	"log"
+	"os"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/routes"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load()
+
 	config.ConnectDB()
 
 	// Auto-migrate semua model
@@ -32,6 +36,9 @@ func main() {
 
 	router := gin.Default()
 	routes.SetupRoutes(router)
-	router.Static("/uploads", "./uploads")
-	router.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	router.Run(":" + port)
 }

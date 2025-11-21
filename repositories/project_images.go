@@ -10,7 +10,6 @@ type ProjectImageRepository interface {
 	GetProjectImages(projectID uint) ([]models.ProjectImage, error)
 	GetProjectImageByID(imageID uint) (*models.ProjectImage, error)
 	DeleteProjectImage(imageID uint) error
-	IsUserProjectMember(projectID uint, userID uint) (bool, error)
 }
 
 type projectImageRepository struct{}

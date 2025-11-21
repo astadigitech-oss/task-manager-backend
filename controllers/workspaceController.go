@@ -19,7 +19,8 @@ func NewWorkspaceController(service services.WorkspaceService) *WorkspaceControl
 }
 
 func GetCurrentUser(c *gin.Context) *models.User {
-	return &models.User{ID: 1, Name: "Admin", Role: "admin"} //dummy aja ini
+	user, _ := c.Get("currentUser")
+	return user.(*models.User)
 }
 
 type APIResponse struct {

@@ -2,6 +2,7 @@ package routes
 
 import (
 	"project-management-backend/controllers"
+	"project-management-backend/middleware"
 	"project-management-backend/repositories"
 	"project-management-backend/services"
 
@@ -12,103 +13,106 @@ func SetupRoutes(r *gin.Engine) {
 
 	//Inisiasi Layer
 	userRepo := repositories.NewUserRepository()
-	userService := services.NewUserService(userRepo)
-	userController := controllers.NewUserController(userService)
+	authService := services.NewAuthService(userRepo)
+	authController := controllers.NewAuthController(authService)
 
+	//repositories
+	taskRepo := repositories.NewTaskRepository()
+	projectRepo := repositories.NewProjectRepository()
+	projectImageRepo := repositories.NewProjectImageRepository()
 	workspaceRepo := repositories.NewWorkspaceRepository()
-	workspaceService := services.NewWorkspaceService(workspaceRepo)
+
+	//services
+	taskService := services.NewTaskService(taskRepo)
+	projectService := services.NewProjectService(projectRepo, workspaceRepo)
+	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo)
+	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
+
+	//controllers
+	taskController := controllers.NewTaskController(taskService)
+	projectController := controllers.NewProjectController(projectService)
+	projectImageController := controllers.NewProjectImageController(projectImageService)
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
 
-	projectRepo := repositories.NewProjectRepository()
-	projectService := services.NewProjectService(projectRepo)
-	projectController := controllers.NewProjectController(projectService)
+	authMiddleware := middleware.AuthMiddleware(authService)
+	adminMiddleware := middleware.AdminMiddleware()
 
-	projectImageRepo := repositories.NewProjectImageRepository()
-	projectImageService := services.NewProjectImageService(projectImageRepo)
-	projectImageController := controllers.NewProjectImageController(projectImageService)
-
-	taskRepo := repositories.NewTaskRepository()
-	taskService := services.NewTaskService(taskRepo)
-	taskController := controllers.NewTaskController(taskService)
-
-	// User
-	r.POST("/users", userController.CreateUser)
-	r.GET("/users", userController.GetUsers)
-
-	// Workspace
-	workspaces := r.Group("/workspaces")
+	//public routes
+	auth := r.Group("/auth")
 	{
-		workspaces.GET("", workspaceController.ListWorkspaces)
-		workspaces.POST("", workspaceController.CreateWorkspace)
-
-		workspace := workspaces.Group("/:workspace_id")
-		{
-			workspace.GET("", workspaceController.DetailWorkspace)
-			workspace.PUT("", workspaceController.UpdateWorkspace)
-			workspace.DELETE("", workspaceController.SoftDeleteWorkspace)
-
-			workspace.DELETE("/permanent", workspaceController.DeleteWorkspace)
-
-			workspace.GET("/members", workspaceController.GetMembers)
-			workspace.POST("/members", workspaceController.AddMember)
-		}
+		auth.POST("/register", authController.Register)
+		auth.POST("/login", authController.Login)
+		auth.GET("/profile", authMiddleware, authController.GetProfile) // Ini butuh auth
 	}
 
-	// Project
-	projects := r.Group("/workspaces/:workspace_id/projects")
+	//Protected Routes
+	api := r.Group("/api")
+	api.Use(authMiddleware)
 	{
-		projects.GET("", projectController.ListProjects)
-		projects.POST("", projectController.CreateProject)
-
-		project := projects.Group("/:project_id")
+		// Workspace
+		workspaces := api.Group("/workspaces")
 		{
-			project.GET("", projectController.DetailProject)
-			project.PUT("", projectController.UpdateProject)
-			project.DELETE("", projectController.SoftDeleteProject)
+			workspaces.GET("", workspaceController.ListWorkspaces)
+			workspaces.POST("", adminMiddleware, workspaceController.CreateWorkspace)
 
-			project.DELETE("/permanent", projectController.DeleteProject)
-
-			project.GET("/members", projectController.GetMembers)
-			project.POST("/members", projectController.AddMember)
-
-			images := project.Group("/images")
+			workspace := workspaces.Group("/:workspace_id")
 			{
-				images.GET("", projectImageController.GetProjectImages)
-				images.POST("", projectImageController.UploadProjectImage)
-				images.DELETE("/:image_id", projectImageController.DeleteProjectImage)
+				workspace.GET("", workspaceController.DetailWorkspace)
+				workspace.PUT("", adminMiddleware, workspaceController.UpdateWorkspace)
+				workspace.DELETE("", adminMiddleware, workspaceController.SoftDeleteWorkspace)
+				workspace.DELETE("/permanent", adminMiddleware, workspaceController.DeleteWorkspace)
+
+				workspace.GET("/members", adminMiddleware, workspaceController.GetMembers)
+				workspace.POST("/members", adminMiddleware, workspaceController.AddMember)
+			}
+		}
+
+		// Project
+		projects := api.Group("projects")
+		{
+			projects.GET("", projectController.ListProjects)
+			projects.POST("", adminMiddleware, projectController.CreateProject)
+
+			project := projects.Group("/:project_id")
+			{
+				project.GET("", projectController.DetailProject)
+				project.PUT("", adminMiddleware, projectController.UpdateProject)
+				project.DELETE("", adminMiddleware, projectController.SoftDeleteProject)
+				project.DELETE("/permanent", adminMiddleware, projectController.DeleteProject)
+
+				project.GET("/members", adminMiddleware, projectController.GetMembers)
+				project.POST("/members", adminMiddleware, projectController.AddMember)
+
+				// Project Images
+				images := project.Group("/images")
+				{
+					images.GET("", projectImageController.GetProjectImages)
+					images.POST("", adminMiddleware, projectImageController.UploadProjectImage)
+					images.DELETE("/:image_id", adminMiddleware, projectImageController.DeleteProjectImage)
+				}
+			}
+		}
+
+		// Task
+		tasks := api.Group("/workspaces/:workspace_id/projects/:project_id/tasks")
+		{
+			tasks.GET("", taskController.ListTasks)
+			tasks.POST("", adminMiddleware, taskController.CreateTask) // Member project
+
+			task := tasks.Group("/:task_id")
+			{
+				task.GET("", taskController.DetailTask)
+				task.PUT("", taskController.UpdateTask)                               // Member project/task
+				task.DELETE("", adminMiddleware, taskController.SoftDeleteTask)       // Creator atau member project
+				task.DELETE("/permanent", adminMiddleware, taskController.DeleteTask) // Creator atau member project
+
+				task.GET("/members", adminMiddleware, taskController.GetMembers)
+				task.POST("/members", adminMiddleware, taskController.AddMember) // Member project bisa add member task
 			}
 		}
 	}
 
-	// Task
-	tasks := r.Group("/workspaces/:workspace_id/projects/:project_id/tasks")
-	{
-		tasks.GET("", taskController.ListTasks)
-		tasks.POST("", taskController.CreateTask)
-
-		task := tasks.Group("/:task_id")
-		{
-			task.GET("", taskController.DetailTask)
-			task.PUT("", taskController.UpdateTask)
-			task.DELETE("", taskController.SoftDeleteTask)
-
-			task.DELETE("/permanent", taskController.DeleteTask)
-
-			task.GET("/members", taskController.GetMembers)
-			task.POST("/members", taskController.AddMember)
-		}
-	}
-
-	// ProjectImage
-	// r.POST("/project-images", controllers.UploadProjectImage)
-	// r.GET("/project-images/:project_id", controllers.ListProjectImages)
-
-	// // TaskImage
-	// r.POST("/task-images", controllers.UploadTaskImage)
-	// r.GET("/task-images/:task_id", controllers.ListTaskImages)
-
-	// Activity Log
-
-	// // Error Log
-
+	// ==================== STATIC FILES ====================
+	// Tetap public untuk akses uploaded images
+	r.Static("/uploads", "./uploads")
 }

@@ -18,21 +18,14 @@ func NewProjectController(service services.ProjectService) *ProjectController {
 }
 
 func (pc *ProjectController) ListProjects(c *gin.Context) {
-	workspaceID, err := ParseUintParam(c, "workspace_id")
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
 	currentUser := GetCurrentUser(c)
 
-	projects, err := pc.Service.GetAllProjects(workspaceID, currentUser)
+	projects, err := pc.Service.GetAllProjects(currentUser)
 	if err != nil {
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Simple response tanpa detail relations
 	var projectList []gin.H
 	for _, project := range projects {
 		projectList = append(projectList, gin.H{
@@ -55,15 +48,10 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 }
 
 func (pc *ProjectController) CreateProject(c *gin.Context) {
-	workspaceID, err := ParseUintParam(c, "workspace_id")
-	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
 	var input struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		WorkspaceID uint   `json:"workspace_id"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -75,7 +63,7 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 	project := models.Project{
 		Name:        input.Name,
 		Description: input.Description,
-		WorkspaceID: workspaceID,
+		WorkspaceID: input.WorkspaceID,
 	}
 
 	if err := pc.Service.CreateProject(&project, currentUser); err != nil {
@@ -85,13 +73,16 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 
 	utils.ActivityLog(currentUser.ID, "CREATE_PROJECT", "project", project.ID, nil, project)
 
-	respProject := utils.ToProjectResponse(&project)
-
 	c.JSON(201, APIResponse{
 		Success: true,
 		Code:    201,
 		Message: "Project berhasil di buat",
-		Data:    respProject,
+		Data: gin.H{
+			"id":           project.ID,
+			"name":         project.Name,
+			"description":  project.Description,
+			"workspace_id": project.WorkspaceID,
+		},
 	})
 }
 
@@ -110,12 +101,17 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 		return
 	}
 
-	respProject := utils.ToProjectResponse(project)
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
 		Message: "Detail project berhasil diambil",
-		Data:    respProject,
+		Data: gin.H{
+			"id":           project.ID,
+			"name":         project.Name,
+			"description":  project.Description,
+			"workspace_id": project.WorkspaceID,
+			"created_by":   project.CreatedBy,
+		},
 	})
 }
 
@@ -186,11 +182,18 @@ func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
+	oldProject, err := pc.Service.GetByID(projectID, currentUser)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "Project tidak ditemukan"})
+		return
+	}
+
 	if err := pc.Service.SoftDeleteProject(projectID, currentUser); err != nil {
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
 
+	utils.ActivityLog(currentUser.ID, "SOFT_DELETE_PROJECT", "project", projectID, oldProject, "deleted")
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
@@ -236,6 +239,8 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
+
+	utils.ActivityLog(currentUser.ID, "DELETE_PROJECT", "project", projectID, project, "hard deleted")
 
 	c.JSON(200, APIResponse{
 		Success: true,

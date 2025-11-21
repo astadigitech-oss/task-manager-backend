@@ -10,10 +10,11 @@ import (
 
 type TaskRepository interface {
 	CreateTask(task *models.Task) error
-	GetAllTasks(projectID uint, workspaceID uint) ([]models.Task, error)
-	GetByID(taskID uint, workspaceID uint) (*models.Task, error)
+	GetAllTasks(projectID uint) ([]models.Task, error)
+	GetByID(taskID uint) (*models.Task, error)
 	UpdateTask(task *models.Task) error
 	SoftDeleteTask(taskID uint) error
+	SoftDeleteAllTasksInProject(projectID uint) error
 	DeleteTask(taskID uint) error // Hard delete
 	AddMember(tu *models.TaskUser) error
 	GetMembers(taskID uint) ([]models.TaskUser, error)
@@ -21,6 +22,7 @@ type TaskRepository interface {
 	IsProjectInWorkspace(projectID uint, workspaceID uint) (bool, error)
 	IsUserMember(taskID uint, userID uint) (bool, error)
 	IsUserInProject(projectID uint, userID uint) (bool, error)
+	GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error)
 }
 
 type taskRepository struct{}
@@ -33,31 +35,55 @@ func (r *taskRepository) CreateTask(task *models.Task) error {
 	return config.DB.Create(task).Error
 }
 
-func (r *taskRepository) GetAllTasks(projectID uint, workspaceID uint) ([]models.Task, error) {
+func (r *taskRepository) GetAllTasks(projectID uint) ([]models.Task, error) {
 	var tasks []models.Task
 	err := config.DB.
-		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL", projectID). // Specify table
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
 		Preload("Members.User").
 		Preload("Images").
-		Preload("Project", func(db *gorm.DB) *gorm.DB {
-			return db.Where("projects.deleted_at IS NULL") // Filter project yang tidak di soft delete
-		}).
+		Preload("Project").
 		Find(&tasks).Error
 	return tasks, err
 }
 
-func (r *taskRepository) GetByID(taskID uint, workspaceID uint) (*models.Task, error) {
-	var task models.Task
+func (r *taskRepository) GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error) {
+	var tasks []models.Task
 	err := config.DB.
-		Where("tasks.id = ? AND tasks.deleted_at IS NULL", taskID). // Specify table
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
+		Where("tasks.id IN (SELECT task_id FROM task_users WHERE user_id = ?)", userID).
 		Preload("Members.User").
 		Preload("Images").
-		Preload("Project", func(db *gorm.DB) *gorm.DB {
-			return db.Where("projects.deleted_at IS NULL") // Filter project yang tidak di soft delete
-		}).
-		Preload("Project.Workspace", func(db *gorm.DB) *gorm.DB {
-			return db.Where("workspaces.deleted_at IS NULL") // Filter workspace yang tidak di soft delete
-		}).
+		Preload("Project").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) SoftDeleteAllTasksInProject(projectID uint) error {
+	return config.DB.Model(&models.Task{}).
+		Where("project_id = ?", projectID).
+		Update("deleted_at", time.Now()).Error
+}
+
+func (r *taskRepository) GetProjectByID(projectID uint) (*models.Project, error) {
+	var project models.Project
+	err := config.DB.First(&project, projectID).Error
+	return &project, err
+}
+
+func (r *taskRepository) GetByID(taskID uint) (*models.Task, error) {
+	var task models.Task
+	err := config.DB.
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", taskID).
+		Preload("Members.User").
+		Preload("Images").
+		Preload("Project").
+		Preload("Project.Workspace").
 		First(&task).Error
 	return &task, err
 }

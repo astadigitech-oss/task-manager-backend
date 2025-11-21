@@ -4,6 +4,8 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type WorkspaceRepository interface {
@@ -18,6 +20,7 @@ type WorkspaceRepository interface {
 	GetUserByID(userID uint) (*models.User, error)
 	IsUserMember(workspaceID uint, userID uint) (bool, error)
 	GetWorkspaceMember(workspaceID uint, userID uint) (*models.WorkspaceUser, error)
+	GetWorkspacesByUserID(userID uint) ([]models.Workspace, error)
 }
 
 type workspaceRepository struct{}
@@ -35,6 +38,20 @@ func (r *workspaceRepository) GetAllWorkspaces() ([]models.Workspace, error) {
 	err := config.DB.
 		Where("deleted_at IS NULL").
 		Preload("Projects").
+		Preload("Members").
+		Find(&workspaces).Error
+	return workspaces, err
+}
+
+func (r *workspaceRepository) GetWorkspacesByUserID(userID uint) ([]models.Workspace, error) {
+	var workspaces []models.Workspace
+	err := config.DB.
+		Select("DISTINCT workspaces.*").
+		Joins("JOIN workspace_users ON workspace_users.workspace_id = workspaces.id").
+		Where("workspace_users.user_id = ? AND workspaces.deleted_at IS NULL", userID).
+		Preload("Projects", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL")
+		}).
 		Preload("Members").
 		Find(&workspaces).Error
 	return workspaces, err

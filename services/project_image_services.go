@@ -19,16 +19,27 @@ type ProjectImageService interface {
 }
 
 type projectImageService struct {
-	repo repositories.ProjectImageRepository
+	repo          repositories.ProjectImageRepository
+	projectRepo   repositories.ProjectRepository
+	workspaceRepo repositories.WorkspaceRepository
 }
 
-func NewProjectImageService(repo repositories.ProjectImageRepository) ProjectImageService {
-	return &projectImageService{repo: repo}
+func NewProjectImageService(repo repositories.ProjectImageRepository, projectRepo repositories.ProjectRepository, workspaceRepo repositories.WorkspaceRepository) ProjectImageService {
+	return &projectImageService{repo: repo, projectRepo: projectRepo, workspaceRepo: workspaceRepo}
 }
 
 func (s *projectImageService) UploadProjectImage(projectID uint, file *multipart.FileHeader, userID uint) (*models.ProjectImage, error) {
-	// Validasi: cek apakah user adalah member project
-	isMember, err := s.repo.IsUserProjectMember(projectID, userID)
+	project, err := s.projectRepo.GetByID(projectID)
+	if err != nil {
+		return nil, errors.New("project tidak ditemukan atau workspace sudah dihapus")
+	}
+
+	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
+	if err != nil || !hasWorkspaceAccess {
+		return nil, errors.New("tidak memiliki akses ke workspace project ini")
+	}
+
+	isMember, err := s.projectRepo.IsUserMember(projectID, userID)
 	if err != nil || !isMember {
 		return nil, errors.New("hanya member project yang boleh upload image")
 	}
@@ -79,7 +90,6 @@ func (s *projectImageService) UploadProjectImage(projectID uint, file *multipart
 	}
 
 	if err := s.repo.CreateProjectImage(projectImage); err != nil {
-		// Delete file jika gagal save ke database
 		os.Remove(filePath)
 		return nil, errors.New("gagal menyimpan data image: " + err.Error())
 	}
@@ -88,8 +98,17 @@ func (s *projectImageService) UploadProjectImage(projectID uint, file *multipart
 }
 
 func (s *projectImageService) GetProjectImages(projectID uint, userID uint) ([]models.ProjectImage, error) {
-	// Validasi: cek apakah user adalah member project
-	isMember, err := s.repo.IsUserProjectMember(projectID, userID)
+	project, err := s.projectRepo.GetByID(projectID)
+	if err != nil {
+		return nil, errors.New("project tidak ditemukan atau workspace sudah dihapus")
+	}
+
+	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
+	if err != nil || !hasWorkspaceAccess {
+		return nil, errors.New("tidak memiliki akses ke workspace project ini")
+	}
+
+	isMember, err := s.projectRepo.IsUserMember(projectID, userID)
 	if err != nil || !isMember {
 		return nil, errors.New("hanya member project yang boleh melihat images")
 	}
@@ -103,13 +122,19 @@ func (s *projectImageService) DeleteProjectImage(imageID uint, userID uint) erro
 		return errors.New("image tidak ditemukan")
 	}
 
-	isMember, err := s.repo.IsUserProjectMember(image.ProjectID, userID)
-	if err != nil || !isMember {
-		return errors.New("hanya member project yang boleh menghapus image")
+	project, err := s.projectRepo.GetByID(image.ProjectID)
+	if err != nil {
+		return errors.New("project tidak ditemukan atau workspace sudah dihapus")
 	}
 
-	if image.UploadedBy != userID {
-		return errors.New("hanya uploader yang boleh menghapus image")
+	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
+	if err != nil || !hasWorkspaceAccess {
+		return errors.New("tidak memiliki akses ke workspace project ini")
+	}
+
+	isProjectMember, err := s.projectRepo.IsUserMember(image.ProjectID, userID)
+	if err != nil || !isProjectMember {
+		return errors.New("hanya member project yang boleh menghapus image")
 	}
 
 	filePath := "." + image.URL // Karena URL relative

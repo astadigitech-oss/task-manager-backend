@@ -6,10 +6,12 @@ import (
 )
 
 type UserRepository interface {
-	GetAllUsers() ([]models.User, error)
+	Create(user *models.User) error
+	GetByID(userID uint) (*models.User, error)
 	GetByEmail(email string) (*models.User, error)
-	GetByRole(role string) ([]models.User, error)
-	CreateUser(user *models.User) error
+	GetAll() ([]models.User, error)
+	Update(user *models.User) error
+	Delete(userID uint) error
 }
 
 type userRepository struct{}
@@ -18,30 +20,35 @@ func NewUserRepository() UserRepository {
 	return &userRepository{}
 }
 
-func (r *userRepository) GetAllUsers() ([]models.User, error) {
-	var users []models.User
-	if err := config.DB.Preload("Projects").Preload("Tasks").Find(&users).Error; err != nil {
-		return nil, err
-	}
-	return users, nil
+func (r *userRepository) Create(user *models.User) error {
+	return config.DB.Create(user).Error
+}
+
+func (r *userRepository) GetByID(userID uint) (*models.User, error) {
+	var user models.User
+	err := config.DB.Where("id = ?", userID).First(&user).Error
+	return &user, err
 }
 
 func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 	var user models.User
-	if err := config.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		return nil, err
+	err := config.DB.Where("email = ?", email).First(&user).Error
+	if err != nil {
+		return nil, err // return error asli dari GORM
 	}
 	return &user, nil
 }
 
-func (r *userRepository) GetByRole(role string) ([]models.User, error) {
+func (r *userRepository) GetAll() ([]models.User, error) {
 	var users []models.User
-	if err := config.DB.Where("role = ?", role).Find(&users).Error; err != nil {
-		return nil, err
-	}
-	return users, nil
+	err := config.DB.Find(&users).Error
+	return users, err
 }
 
-func (r *userRepository) CreateUser(user *models.User) error {
-	return config.DB.Create(user).Error // otomatis user.ID keisi
+func (r *userRepository) Update(user *models.User) error {
+	return config.DB.Save(user).Error
+}
+
+func (r *userRepository) Delete(userID uint) error {
+	return config.DB.Where("id = ?", userID).Delete(&models.User{}).Error
 }

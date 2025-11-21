@@ -11,8 +11,10 @@ import (
 
 type ProjectRepository interface {
 	CreateProject(project *models.Project) error
-	GetAllProjects(workspaceID uint) ([]models.Project, error)
+	GetAllProjects() ([]models.Project, error)
 	GetByID(projectID uint) (*models.Project, error)
+	GetProjectsByUserID(userID uint) ([]models.Project, error)
+	GetProjectsByWorkspace(workspaceID uint) ([]models.Project, error)
 	UpdateProject(project *models.Project) error
 	SoftDeleteProject(projectID uint) error
 	DeleteProject(projectID uint) error
@@ -33,16 +35,51 @@ func (r *projectRepository) CreateProject(project *models.Project) error {
 	return config.DB.Create(project).Error
 }
 
-func (r *projectRepository) GetAllProjects(workspaceID uint) ([]models.Project, error) {
+func (r *projectRepository) GetAllProjects() ([]models.Project, error) {
 	var projects []models.Project
 	err := config.DB.
-		Where("workspace_id = ? AND deleted_at IS NULL", workspaceID).
-		Preload("Members.User"). // Hanya preload user, jangan project
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL").
+		Preload("Members.User").
 		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, title, project_id") // Hanya field yang diperlukan
+			return db.Where("deleted_at IS NULL")
 		}).
 		Preload("Images", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, url, project_id") // Hanya field yang diperlukan
+			return db.Select("id, url, project_id")
+		}).
+		Find(&projects).Error
+	return projects, err
+}
+
+func (r *projectRepository) GetProjectsByUserID(userID uint) ([]models.Project, error) {
+	var projects []models.Project
+	err := config.DB.
+		Select("DISTINCT projects.*").
+		Joins("JOIN project_users ON project_users.project_id = projects.id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("project_users.user_id = ? AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", userID).
+		Preload("Members.User").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL")
+		}).
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, url, project_id")
+		}).
+		Find(&projects).Error
+	return projects, err
+}
+
+func (r *projectRepository) GetProjectsByWorkspace(workspaceID uint) ([]models.Project, error) {
+	var projects []models.Project
+	err := config.DB.
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("projects.workspace_id = ? AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", workspaceID).
+		Preload("Members.User").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Where("deleted_at IS NULL")
+		}).
+		Preload("Images", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id, url, project_id")
 		}).
 		Find(&projects).Error
 	return projects, err
@@ -51,9 +88,10 @@ func (r *projectRepository) GetAllProjects(workspaceID uint) ([]models.Project, 
 func (r *projectRepository) GetByID(projectID uint) (*models.Project, error) {
 	var project models.Project
 	err := config.DB.
-		Where("id = ? AND deleted_at IS NULL", projectID).
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("projects.id = ? AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
 		Preload("Members.User").
-		Preload("Tasks").
+		Preload("Tasks", "deleted_at IS NULL").
 		Preload("Images").
 		Preload("Workspace").
 		First(&project).Error
