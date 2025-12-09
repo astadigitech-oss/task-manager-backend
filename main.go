@@ -7,12 +7,15 @@ import (
 	"project-management-backend/models"
 	"project-management-backend/routes"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("No .env file found, using system environment variables")
+	}
 
 	config.ConnectDB()
 
@@ -35,6 +38,15 @@ func main() {
 	}
 
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"*"},
+		AllowHeaders:     []string{"*"},
+		AllowCredentials: true,
+		MaxAge:           5 * 60,
+	}))
+
 	routes.SetupRoutes(router)
 	port := os.Getenv("PORT")
 	if port == "" {
