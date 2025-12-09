@@ -17,18 +17,21 @@ func SetupRoutes(r *gin.Engine) {
 	authController := controllers.NewAuthController(authService)
 
 	//repositories
+	taskImageRepo := repositories.NewTaskImageRepository()
 	taskRepo := repositories.NewTaskRepository()
 	projectRepo := repositories.NewProjectRepository()
 	projectImageRepo := repositories.NewProjectImageRepository()
 	workspaceRepo := repositories.NewWorkspaceRepository()
 
 	//services
+	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskService := services.NewTaskService(taskRepo)
 	projectService := services.NewProjectService(projectRepo, workspaceRepo)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 
 	//controllers
+	taskImageController := controllers.NewTaskImageController(taskImageService)
 	taskController := controllers.NewTaskController(taskService)
 	projectController := controllers.NewProjectController(projectService)
 	projectImageController := controllers.NewProjectImageController(projectImageService)
@@ -108,11 +111,17 @@ func SetupRoutes(r *gin.Engine) {
 
 				task.GET("/members", adminMiddleware, taskController.GetMembers)
 				task.POST("/members", adminMiddleware, taskController.AddMember) // Member project bisa add member task
+
+				// Task Images
+				images := task.Group("/images")
+				{
+					images.GET("", taskImageController.GetTaskImages)
+					images.POST("", taskImageController.UploadTaskImage)
+					images.DELETE("/:image_id", taskImageController.DeleteTaskImage)
+				}
 			}
 		}
 	}
 
-	// ==================== STATIC FILES ====================
-	// Tetap public untuk akses uploaded images
 	r.Static("/uploads", "./uploads")
 }
