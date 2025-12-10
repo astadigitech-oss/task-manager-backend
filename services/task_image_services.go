@@ -57,7 +57,7 @@ func (s *taskImageService) UploadTaskImage(taskID uint, workspaceID uint, file *
 		return nil, errors.New("tidak memiliki akses ke workspace ini")
 	}
 
-	// 4. ✅ VALIDASI: User adalah TASK MEMBER (bukan hanya project member)
+	// 4. VALIDASI: User adalah TASK MEMBER (bukan hanya project member)
 	isTaskMember, err := s.taskRepo.IsUserMember(taskID, user.ID)
 	if err != nil || !isTaskMember {
 		return nil, errors.New("hanya task member yang boleh upload image")
@@ -137,11 +137,14 @@ func (s *taskImageService) GetTaskImages(taskID uint, projectID uint, workspaceI
 		return nil, errors.New("tidak memiliki akses ke workspace ini")
 	}
 
-	isTaskMember, _ := s.taskRepo.IsUserMember(taskID, user.ID)
-	isProjectMember, _ := s.taskRepo.IsUserInProject(task.ProjectID, user.ID)
+	isTaskMember, err := s.taskRepo.IsUserMember(taskID, user.ID)
+	if err != nil || !isTaskMember {
+		return nil, errors.New("hanya task member yang boleh melihat image")
+	}
 
-	if !isTaskMember && !isProjectMember {
-		return nil, errors.New("hanya task member atau project member yang boleh melihat images")
+	isProjectMember, _ := s.taskRepo.IsUserInProject(task.ProjectID, user.ID)
+	if err != nil || !isProjectMember {
+		return nil, errors.New("hanya project member yang boleh melihat image")
 	}
 
 	return s.repo.GetTaskImages(taskID)
