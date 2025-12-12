@@ -21,6 +21,8 @@ type WorkspaceRepository interface {
 	IsUserMember(workspaceID uint, userID uint) (bool, error)
 	GetWorkspaceMember(workspaceID uint, userID uint) (*models.WorkspaceUser, error)
 	GetWorkspacesByUserID(userID uint) ([]models.Workspace, error)
+	RemoveMembers(workspaceID uint, userIDs []uint) error
+	RemoveMember(workspaceID uint, userID uint) error
 }
 
 type workspaceRepository struct{}
@@ -118,4 +120,16 @@ func (r *workspaceRepository) GetWorkspaceMember(workspaceID uint, userID uint) 
 		return nil, err
 	}
 	return &workspaceUser, nil
+}
+
+func (r *workspaceRepository) RemoveMember(workspaceID uint, userID uint) error {
+	return config.DB.
+		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
+		Delete(&models.WorkspaceUser{}).Error
+}
+
+func (r *workspaceRepository) RemoveMembers(workspaceID uint, userIDs []uint) error {
+	return config.DB.
+		Where("workspace_id = ? AND user_id IN ?", workspaceID, userIDs).
+		Delete(&models.WorkspaceUser{}).Error
 }

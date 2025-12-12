@@ -92,7 +92,7 @@ func (s *authService) Login(email, password string) (string, *models.User, error
 }
 
 func (s *authService) generateToken(user *models.User) (string, error) {
-	expirationTime := time.Now().Add(7 * 24 * time.Hour)
+	expirationTime := time.Now().Add(8 * time.Hour)
 
 	claims := &Claims{
 		UserID: user.ID,

@@ -27,8 +27,9 @@ func SetupRoutes(r *gin.Engine) {
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskService := services.NewTaskService(taskRepo)
 	projectService := services.NewProjectService(projectRepo, workspaceRepo)
-	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo)
+	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
+	userService := services.NewUserService(userRepo)
 
 	//controllers
 	taskImageController := controllers.NewTaskImageController(taskImageService)
@@ -36,6 +37,7 @@ func SetupRoutes(r *gin.Engine) {
 	projectController := controllers.NewProjectController(projectService)
 	projectImageController := controllers.NewProjectImageController(projectImageService)
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
+	userController := controllers.NewUserController(userService)
 
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
@@ -66,8 +68,16 @@ func SetupRoutes(r *gin.Engine) {
 				workspace.DELETE("/permanent", adminMiddleware, workspaceController.DeleteWorkspace)
 
 				workspace.GET("/members", adminMiddleware, workspaceController.GetMembers)
-				workspace.POST("/members", adminMiddleware, workspaceController.AddMember)
+				workspace.POST("/members", adminMiddleware, workspaceController.AddMembers)
+				workspace.DELETE("/members/:user_id", adminMiddleware, workspaceController.RemoveSingleMember)
+				workspace.DELETE("/members/", adminMiddleware, workspaceController.RemoveMember)
 			}
+		}
+
+		// user
+		users := api.Group("/users")
+		{
+			users.GET("", userController.GetAllUsers)
 		}
 
 		// Project
@@ -85,6 +95,8 @@ func SetupRoutes(r *gin.Engine) {
 
 				project.GET("/members", adminMiddleware, projectController.GetMembers)
 				project.POST("/members", adminMiddleware, projectController.AddMember)
+				project.DELETE("/members/:user_id", adminMiddleware, projectController.RemoveSingleMember)
+				project.DELETE("/members/", adminMiddleware, projectController.RemoveMember)
 
 				// Project Images
 				images := project.Group("/images")

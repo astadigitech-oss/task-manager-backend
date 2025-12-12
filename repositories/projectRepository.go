@@ -21,8 +21,11 @@ type ProjectRepository interface {
 	AddMember(pu *models.ProjectUser) error
 	GetMembers(projectID uint) ([]models.ProjectUser, error)
 	GetUserByID(userID uint) (*models.User, error)
+	GetProjectMember(projectID uint, userID uint) (*models.ProjectUser, error)
 	IsUserMember(projectID uint, userID uint) (bool, error)
 	IsUserInWorkspace(workspaceID uint, userID uint) (bool, error)
+	RemoveMember(projectID uint, userID uint) error
+	RemoveMembers(projectID uint, userIDs []uint) error
 }
 
 type projectRepository struct{}
@@ -162,6 +165,17 @@ func (r *projectRepository) GetMembers(projectID uint) ([]models.ProjectUser, er
 	return members, err
 }
 
+func (r *projectRepository) GetProjectMember(projectID uint, userID uint) (*models.ProjectUser, error) {
+	var projectUser models.ProjectUser
+	err := config.DB.
+		Where("project_id = ? AND user_id = ?", projectID, userID).
+		First(&projectUser).Error
+	if err != nil {
+		return nil, err
+	}
+	return &projectUser, nil
+}
+
 func (r *projectRepository) GetUserByID(userID uint) (*models.User, error) {
 	var user models.User
 	err := config.DB.First(&user, userID).Error
@@ -182,4 +196,16 @@ func (r *projectRepository) IsUserInWorkspace(workspaceID uint, userID uint) (bo
 		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (r *projectRepository) RemoveMember(projectID uint, userID uint) error {
+	return config.DB.
+		Where("project_id = ? AND user_id = ?", projectID, userID).
+		Delete(&models.ProjectUser{}).Error
+}
+
+func (r *projectRepository) RemoveMembers(projectID uint, userIDs []uint) error {
+	return config.DB.
+		Where("project_id = ? AND user_id IN ?", projectID, userIDs).
+		Delete(&models.ProjectUser{}).Error
 }

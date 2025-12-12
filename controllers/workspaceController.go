@@ -266,38 +266,65 @@ func (wc *WorkspaceController) DeleteWorkspace(c *gin.Context) {
 	})
 }
 
-func (wc *WorkspaceController) AddMember(c *gin.Context) {
-	var input struct {
-		UserID uint    `json:"user_id"`
-		Role   *string `json:"role_in_workspace"`
-	}
-
+func (wc *WorkspaceController) AddMembers(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
+	var input struct {
+		Members []struct {
+			UserID uint    `json:"user_id" binding:"required"`
+			Role   *string `json:"role_in_workspace"`
+		} `json:"members" binding:"required,min=1,dive"`
+	}
+
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Format data tidak valid: " + err.Error()})
 		return
+	}
+
+	workspaceMembers := make([]services.WorkspaceMember, len(input.Members))
+	for i, member := range input.Members {
+		workspaceMembers[i] = services.WorkspaceMember{
+			UserID: member.UserID,
+			Role:   member.Role,
+		}
 	}
 
 	currentUser := GetCurrentUser(c)
 
-	if err := wc.Service.AddMember(workspaceID, input.UserID, input.Role, currentUser); err != nil {
-		c.JSON(403, gin.H{"error": err.Error()})
+	if err := wc.Service.AddMembers(workspaceID, workspaceMembers, currentUser); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
+
+	addedMembers := make([]gin.H, len(input.Members))
+	for i, member := range input.Members {
+		roleStr := "member"
+		if member.Role != nil {
+			roleStr = *member.Role
+		}
+		addedMembers[i] = gin.H{
+			"user_id": member.UserID,
+			"role":    roleStr,
+		}
+	}
+
+	utils.ActivityLog(currentUser.ID, "ADD_MEMBERS", "workspace", workspaceID, nil, gin.H{
+		"members_added": len(input.Members),
+		"user_ids":      input.Members,
+	})
 
 	c.JSON(201, APIResponse{
 		Success: true,
 		Code:    201,
-		Message: "Member berhasil di tambahkan ke workspace",
+		Message: fmt.Sprintf("%d member berhasil ditambahkan ke workspace", len(input.Members)),
 		Data: gin.H{
 			"workspace_id": workspaceID,
-			"user_id":      input.UserID,
-			"role":         input.Role,
+			"members":      addedMembers,
+			"total_added":  len(input.Members),
 		},
 	})
 }
@@ -331,5 +358,87 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 		Code:    200,
 		Message: "List member berhasil di ambil",
 		Data:    memberList,
+	})
+}
+
+func (wc *WorkspaceController) RemoveMember(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input struct {
+		UserIDs []uint `json:"user_ids" binding:"required,min=1,dive"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid: " + err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if len(input.UserIDs) == 1 {
+		if err := wc.Service.RemoveMember(workspaceID, input.UserIDs[0], currentUser); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := wc.Service.RemoveMembers(workspaceID, input.UserIDs, currentUser); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	utils.ActivityLog(currentUser.ID, "REMOVE_MEMBERS", "workspace", workspaceID, nil, gin.H{
+		"user_ids_removed": input.UserIDs,
+		"total_removed":    len(input.UserIDs),
+	})
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: fmt.Sprintf("%d member berhasil dihapus dari workspace", len(input.UserIDs)),
+		Data: gin.H{
+			"workspace_id":     workspaceID,
+			"user_ids_removed": input.UserIDs,
+			"total_removed":    len(input.UserIDs),
+		},
+	})
+}
+
+func (wc *WorkspaceController) RemoveSingleMember(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	memberID, err := ParseUintParam(c, "user_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if err := wc.Service.RemoveMember(workspaceID, memberID, currentUser); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "REMOVE_MEMBER", "workspace", workspaceID, nil, gin.H{
+		"member_id_removed": memberID,
+	})
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Member berhasil dihapus dari workspace",
+		Data: gin.H{
+			"workspace_id":      workspaceID,
+			"member_id_removed": memberID,
+		},
 	})
 }

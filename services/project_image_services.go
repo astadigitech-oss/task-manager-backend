@@ -22,10 +22,11 @@ type projectImageService struct {
 	repo          repositories.ProjectImageRepository
 	projectRepo   repositories.ProjectRepository
 	workspaceRepo repositories.WorkspaceRepository
+	userRepo      repositories.UserRepository
 }
 
-func NewProjectImageService(repo repositories.ProjectImageRepository, projectRepo repositories.ProjectRepository, workspaceRepo repositories.WorkspaceRepository) ProjectImageService {
-	return &projectImageService{repo: repo, projectRepo: projectRepo, workspaceRepo: workspaceRepo}
+func NewProjectImageService(repo repositories.ProjectImageRepository, projectRepo repositories.ProjectRepository, workspaceRepo repositories.WorkspaceRepository, userRepo repositories.UserRepository) ProjectImageService {
+	return &projectImageService{repo: repo, projectRepo: projectRepo, workspaceRepo: workspaceRepo, userRepo: userRepo}
 }
 
 func (s *projectImageService) UploadProjectImage(projectID uint, file *multipart.FileHeader, userID uint) (*models.ProjectImage, error) {
@@ -34,14 +35,21 @@ func (s *projectImageService) UploadProjectImage(projectID uint, file *multipart
 		return nil, errors.New("project tidak ditemukan atau workspace sudah dihapus")
 	}
 
-	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
-	if err != nil || !hasWorkspaceAccess {
-		return nil, errors.New("tidak memiliki akses ke workspace project ini")
+	user, err := s.userRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user tidak ditemukan")
 	}
 
-	isMember, err := s.projectRepo.IsUserMember(projectID, userID)
-	if err != nil || !isMember {
-		return nil, errors.New("hanya member project yang boleh upload image")
+	if user.Role != "admin" {
+		hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
+		if err != nil || !hasWorkspaceAccess {
+			return nil, errors.New("tidak memiliki akses ke workspace project ini")
+		}
+
+		isMember, err := s.projectRepo.IsUserMember(projectID, userID)
+		if err != nil || !isMember {
+			return nil, errors.New("hanya member project yang boleh upload image")
+		}
 	}
 
 	// Validasi file type
@@ -101,6 +109,15 @@ func (s *projectImageService) GetProjectImages(projectID uint, userID uint) ([]m
 	project, err := s.projectRepo.GetByID(projectID)
 	if err != nil {
 		return nil, errors.New("project tidak ditemukan atau workspace sudah dihapus")
+	}
+
+	user, err := s.projectRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, errors.New("user tidak ditemukan")
+	}
+
+	if user.Role == "admin" {
+		return s.repo.GetProjectImages(projectID)
 	}
 
 	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)

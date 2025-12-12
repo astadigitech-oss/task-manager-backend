@@ -3,6 +3,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
@@ -15,8 +16,15 @@ type ProjectService interface {
 	SoftDeleteProject(projectID uint, user *models.User) error
 	DeleteProject(projectID uint, user *models.User) error
 	GetByID(projectID uint, user *models.User) (*models.Project, error)
-	AddMember(projectID uint, userID uint, role string, currentUser *models.User) error // role string, bukan *string
+	AddMembers(projectID uint, members []ProjectMember, currentUser *models.User) error
 	GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error)
+	RemoveMember(projectID uint, userID uint, currentUser *models.User) error
+	RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error
+}
+
+type ProjectMember struct {
+	UserID uint   `json:"user_id"`
+	Role   string `json:"role_in_project"`
 }
 
 type projectService struct {
@@ -62,7 +70,6 @@ func (s *projectService) GetAllProjects(user *models.User) ([]models.Project, er
 		return s.repo.GetAllProjects()
 	}
 
-	// User regular hanya lihat projects yang dia punya akses
 	return s.repo.GetProjectsByUserID(user.ID)
 }
 
@@ -165,10 +172,55 @@ func (s *projectService) AddMember(projectID uint, userID uint, role string, cur
 	return s.repo.AddMember(member)
 }
 
+func (s *projectService) AddMembers(projectID uint, members []ProjectMember, currentUser *models.User) error {
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	if currentUser.Role != "admin" {
+		isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, currentUser.ID)
+		if err != nil || !isWorkspaceMember {
+			return errors.New("hanya member workspace yang boleh menambah member project")
+		}
+	}
+
+	for _, member := range members {
+		isTargetUserInWorkspace, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, member.UserID)
+		if err != nil || !isTargetUserInWorkspace {
+			return fmt.Errorf("user %d harus menjadi member workspace terlebih dahulu", member.UserID)
+		}
+
+		isMember, err := s.repo.IsUserMember(projectID, member.UserID)
+		if err != nil {
+			return fmt.Errorf("gagal memvalidasi member %d", member.UserID)
+		}
+		if isMember {
+			return fmt.Errorf("user %d sudah menjadi member di project ini", member.UserID)
+		}
+
+		projectMember := &models.ProjectUser{
+			ProjectID:     projectID,
+			UserID:        member.UserID,
+			RoleInProject: member.Role,
+		}
+
+		if err := s.repo.AddMember(projectMember); err != nil {
+			return fmt.Errorf("gagal menambahkan user %d", member.UserID)
+		}
+	}
+
+	return nil
+}
+
 func (s *projectService) GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error) {
 	project, err := s.repo.GetByID(projectID)
 	if err != nil {
 		return nil, errors.New("project tidak ditemukan")
+	}
+
+	if user.Role == "admin" {
+		return s.repo.GetMembers(projectID)
 	}
 
 	isProjectMember, _ := s.repo.IsUserMember(projectID, user.ID)
@@ -179,4 +231,78 @@ func (s *projectService) GetMembers(projectID uint, user *models.User) ([]models
 	}
 
 	return s.repo.GetMembers(projectID)
+}
+
+func (s *projectService) RemoveMember(projectID uint, userID uint, currentUser *models.User) error {
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	targetMember, err := s.repo.GetProjectMember(projectID, userID)
+	if err != nil {
+		return errors.New("member tidak ditemukan di project ini")
+	}
+
+	if currentUser.Role != "admin" {
+		isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, currentUser.ID)
+		if err != nil || !isWorkspaceMember {
+			return errors.New("hanya member workspace yang boleh menghapus member project")
+		}
+
+		currentMember, err := s.repo.GetProjectMember(projectID, currentUser.ID)
+		if err != nil {
+			return errors.New("anda bukan member project ini")
+		}
+
+		if currentMember.RoleInProject != "admin" {
+			return errors.New("hanya admin project yang boleh menghapus member")
+		}
+
+		if userID == currentUser.ID {
+			return errors.New("tidak bisa menghapus diri sendiri, minta admin untuk melakukannya")
+		}
+
+		if targetMember.RoleInProject == "admin" {
+			return errors.New("tidak bisa menghapus admin project lain")
+		}
+	}
+
+	return s.repo.RemoveMember(projectID, userID)
+}
+
+func (s *projectService) RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error {
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return errors.New("project tidak ditemukan")
+	}
+
+	if currentUser.Role != "admin" {
+		isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, currentUser.ID)
+		if err != nil || !isWorkspaceMember {
+			return errors.New("hanya member workspace yang boleh menghapus member project")
+		}
+
+		currentMember, err := s.repo.GetProjectMember(projectID, currentUser.ID)
+		if err != nil || currentMember.RoleInProject != "admin" {
+			return errors.New("hanya admin project yang boleh menghapus member")
+		}
+
+		for _, userID := range userIDs {
+			targetMember, err := s.repo.GetProjectMember(projectID, userID)
+			if err != nil {
+				return fmt.Errorf("user %d tidak ditemukan di project ini", userID)
+			}
+
+			if userID == currentUser.ID {
+				return fmt.Errorf("tidak bisa menghapus diri sendiri (user_id: %d)", userID)
+			}
+
+			if targetMember.RoleInProject == "admin" {
+				return fmt.Errorf("tidak bisa menghapus admin project (user_id: %d)", userID)
+			}
+		}
+	}
+
+	return s.repo.RemoveMembers(projectID, userIDs)
 }

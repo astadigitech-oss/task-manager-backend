@@ -2,9 +2,11 @@
 package controllers
 
 import (
+	"fmt"
 	"project-management-backend/models"
 	"project-management-backend/services"
 	"project-management-backend/utils"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -264,8 +266,10 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 	}
 
 	var input struct {
-		UserID uint   `json:"user_id"`
-		Role   string `json:"role_in_project"`
+		Members []struct {
+			UserID uint   `json:"user_id" binding:"required"`
+			Role   string `json:"role_in_project"`
+		} `json:"members" binding:"required,min=1,dive"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -273,23 +277,46 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 		return
 	}
 
+	projectMembers := make([]services.ProjectMember, len(input.Members))
+	for i, member := range input.Members {
+		projectMembers[i] = services.ProjectMember{
+			UserID: member.UserID,
+			Role:   member.Role,
+		}
+	}
+
 	currentUser := GetCurrentUser(c)
 
-	if err := pc.Service.AddMember(projectID, input.UserID, input.Role, currentUser); err != nil {
-		c.JSON(403, gin.H{"error": err.Error()})
+	if err := pc.Service.AddMembers(projectID, projectMembers, currentUser); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
-	utils.ActivityLog(currentUser.ID, "ADD_MEMBER_PROJECT", "project", projectID, nil, input)
+	//Log Activity
+	addedMembers := make([]gin.H, len(input.Members))
+	for i, member := range input.Members {
+		roleStr := "member"
+		if member.Role != "" {
+			roleStr = member.Role
+		}
+		addedMembers[i] = gin.H{
+			"user_id": member.UserID,
+			"role":    roleStr,
+		}
+	}
+	utils.ActivityLog(currentUser.ID, "ADD_MEMBERS_PROJECT", "project", projectID, nil, gin.H{
+		"members_added": len(input.Members),
+		"user_ids":      addedMembers,
+	})
 
-	c.JSON(200, APIResponse{
+	c.JSON(201, APIResponse{
 		Success: true,
-		Code:    200,
-		Message: "Member berhasil di buat",
+		Code:    201,
+		Message: fmt.Sprintf("%d member berhasil ditambahkan ke project", len(input.Members)),
 		Data: gin.H{
-			"project_id": projectID,
-			"user_id":    input.UserID,
-			"role":       input.Role,
+			"project_id":  projectID,
+			"members":     addedMembers,
+			"total_added": len(input.Members),
 		},
 	})
 }
@@ -324,5 +351,93 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 		Code:    200,
 		Message: "Members project berhasil diambil",
 		Data:    memberProject,
+	})
+}
+
+func (pc *ProjectController) RemoveMember(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input struct {
+		UserIDs []uint `json:"user_ids" binding:"required,min=1,dive"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid: " + err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if len(input.UserIDs) == 1 {
+		if err := pc.Service.RemoveMember(projectID, input.UserIDs[0], currentUser); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		if err := pc.Service.RemoveMembers(projectID, input.UserIDs, currentUser); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	utils.ActivityLog(currentUser.ID, "REMOVE_MEMBERS_PROJECT", "project", projectID, nil, gin.H{
+		"user_ids_removed": input.UserIDs,
+		"total_removed":    len(input.UserIDs),
+	})
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: fmt.Sprintf("%d member berhasil dihapus dari project", len(input.UserIDs)),
+		Data: gin.H{
+			"project_id":       projectID,
+			"user_ids_removed": input.UserIDs,
+			"total_removed":    len(input.UserIDs),
+		},
+	})
+}
+
+func (pc *ProjectController) RemoveSingleMember(c *gin.Context) {
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	memberIDStr := c.Param("user_id")
+	if memberIDStr == "" {
+		c.JSON(400, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	memberID, err := strconv.ParseUint(memberIDStr, 10, 32)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid user_id"})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	if err := pc.Service.RemoveMember(projectID, uint(memberID), currentUser); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "REMOVE_MEMBER_PROJECT", "project", projectID, nil, gin.H{
+		"member_id_removed": memberID,
+	})
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Member berhasil dihapus dari project",
+		Data: gin.H{
+			"project_id":        projectID,
+			"member_id_removed": memberID,
+		},
 	})
 }

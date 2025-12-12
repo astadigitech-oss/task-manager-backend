@@ -40,30 +40,27 @@ func NewTaskImageService(
 }
 
 func (s *taskImageService) UploadTaskImage(taskID uint, workspaceID uint, file *multipart.FileHeader, user *models.User) (*models.TaskImage, error) {
-	// 1. Validasi task exists dan di workspace yang benar
 	task, err := s.taskRepo.GetByID(taskID)
 	if err != nil {
 		return nil, errors.New("task tidak ditemukan")
 	}
 
-	// 2. Validasi task ada di workspace yang diminta
 	if task.Project.WorkspaceID != workspaceID {
 		return nil, errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	// 3. Validasi user adalah workspace member
-	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
-	if err != nil || !hasWorkspaceAccess {
-		return nil, errors.New("tidak memiliki akses ke workspace ini")
+	if user.Role != "admin" {
+		hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
+		if err != nil || !hasWorkspaceAccess {
+			return nil, errors.New("tidak memiliki akses ke workspace ini")
+		}
+
+		isTaskMember, err := s.taskRepo.IsUserMember(taskID, user.ID)
+		if err != nil || !isTaskMember {
+			return nil, errors.New("hanya task member yang boleh upload image")
+		}
 	}
 
-	// 4. VALIDASI: User adalah TASK MEMBER (bukan hanya project member)
-	isTaskMember, err := s.taskRepo.IsUserMember(taskID, user.ID)
-	if err != nil || !isTaskMember {
-		return nil, errors.New("hanya task member yang boleh upload image")
-	}
-
-	// Validasi file type (sama seperti project image)
 	allowedTypes := map[string]bool{
 		"image/jpeg": true,
 		"image/jpg":  true,
@@ -131,7 +128,10 @@ func (s *taskImageService) GetTaskImages(taskID uint, projectID uint, workspaceI
 		return nil, errors.New("task tidak ditemukan di project ini")
 	}
 
-	// 3. Validasi user adalah workspace member
+	if user.Role == "admin" {
+		return s.repo.GetTaskImages(taskID)
+	}
+
 	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
 	if err != nil || !hasWorkspaceAccess {
 		return nil, errors.New("tidak memiliki akses ke workspace ini")
@@ -142,7 +142,7 @@ func (s *taskImageService) GetTaskImages(taskID uint, projectID uint, workspaceI
 		return nil, errors.New("hanya task member yang boleh melihat image")
 	}
 
-	isProjectMember, _ := s.taskRepo.IsUserInProject(task.ProjectID, user.ID)
+	isProjectMember, err := s.taskRepo.IsUserInProject(task.ProjectID, user.ID)
 	if err != nil || !isProjectMember {
 		return nil, errors.New("hanya project member yang boleh melihat image")
 	}
@@ -181,21 +181,3 @@ func (s *taskImageService) DeleteTaskImage(imageID uint, workspaceID uint, user 
 
 	return s.repo.DeleteTaskImage(imageID)
 }
-
-// // Helper function untuk save file (sama seperti project image)
-// func saveUploadedFile(file *multipart.FileHeader, dst string) error {
-// 	src, err := file.Open()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer src.Close()
-
-// 	out, err := os.Create(dst)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer out.Close()
-
-// 	_, err = out.ReadFrom(src)
-// 	return err
-// }

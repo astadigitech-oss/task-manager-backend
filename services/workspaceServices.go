@@ -8,15 +8,21 @@ import (
 	"project-management-backend/repositories"
 )
 
+type WorkspaceMember struct {
+	UserID uint    `json:"user_id"`
+	Role   *string `json:"role_in_workspace"`
+}
 type WorkspaceService interface {
 	CreateWorkspace(workspace *models.Workspace, user *models.User) error
 	GetAllWorkspaces(user *models.User) ([]models.Workspace, error)
 	UpdateWorkspace(workspace *models.Workspace, user *models.User) error
 	SoftDeleteWorkspace(workspaceID uint, user *models.User) error
 	DeleteWorkspace(workspaceID uint, user *models.User) error
-	AddMember(workspaceID uint, userID uint, role *string, user *models.User) error
 	GetMembers(workspaceID uint, user *models.User) ([]models.WorkspaceUser, error)
 	GetByID(workspaceID uint, user *models.User) (*models.Workspace, error)
+	AddMembers(workspaceID uint, members []WorkspaceMember, currentUser *models.User) error
+	RemoveMembers(workspaceID uint, userIDs []uint, currentUser *models.User) error
+	RemoveMember(workspaceID uint, userID uint, currentUser *models.User) error
 }
 
 type workspaceService struct {
@@ -134,32 +140,37 @@ func (s *workspaceService) DeleteWorkspace(workspaceID uint, user *models.User) 
 	return s.repo.DeleteWorkspace(workspaceID)
 }
 
-func (s *workspaceService) AddMember(workspaceID uint, userID uint, role *string, user *models.User) error {
-
+func (s *workspaceService) AddMembers(workspaceID uint, members []WorkspaceMember, currentUser *models.User) error {
 	_, err := s.repo.GetByID(workspaceID)
 	if err != nil {
 		return errors.New("workspace tidak ditemukan")
 	}
 
-	_, err = s.repo.GetUserByID(userID)
-	if err != nil {
-		return errors.New("user tidak ditemukan")
+	for _, member := range members {
+		_, err := s.repo.GetUserByID(member.UserID)
+		if err != nil {
+			return fmt.Errorf("user %d tidak ditemukan", member.UserID)
+		}
+
+		isMember, err := s.repo.IsUserMember(workspaceID, member.UserID)
+		if err != nil {
+			return fmt.Errorf("gagal memvalidasi member %d", member.UserID)
+		}
+		if isMember {
+			return fmt.Errorf("user %d sudah menjadi member di workspace ini", member.UserID)
+		}
+
+		workspaceMember := &models.WorkspaceUser{
+			WorkspaceID:     workspaceID,
+			UserID:          member.UserID,
+			RoleInWorkspace: member.Role,
+		}
+		if err := s.repo.AddMember(workspaceMember); err != nil {
+			return fmt.Errorf("gagal menambahkan user %d", member.UserID)
+		}
 	}
 
-	isMember, err := s.repo.IsUserMember(workspaceID, userID)
-	if err != nil {
-		return errors.New("gagal memvalidasi member")
-	}
-	if isMember {
-		return errors.New("user sudah menjadi member di workspace ini")
-	}
-
-	member := &models.WorkspaceUser{
-		WorkspaceID:     workspaceID,
-		UserID:          userID,
-		RoleInWorkspace: role,
-	}
-	return s.repo.AddMember(member)
+	return nil
 }
 
 func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]models.WorkspaceUser, error) {
@@ -170,4 +181,73 @@ func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]mo
 	}
 
 	return s.repo.GetMembers(workspaceID)
+}
+
+func (s *workspaceService) RemoveMember(workspaceID uint, userID uint, currentUser *models.User) error {
+	workspace, err := s.repo.GetByID(workspaceID)
+	if err != nil {
+		return errors.New("workspace tidak ditemukan")
+	}
+
+	targetMember, err := s.repo.GetWorkspaceMember(workspaceID, userID)
+	if err != nil {
+		return errors.New("member tidak ditemukan di workspace ini")
+	}
+
+	if currentUser.Role != "admin" {
+
+		if workspace.CreatedBy != currentUser.ID {
+
+			currentMember, err := s.repo.GetWorkspaceMember(workspaceID, currentUser.ID)
+			if err != nil {
+				return errors.New("anda bukan member workspace ini")
+			}
+
+			if *currentMember.RoleInWorkspace != "admin" {
+				return errors.New("role Anda tidak cukup untuk menghapus member")
+			}
+
+			if targetMember.RoleInWorkspace != nil && *targetMember.RoleInWorkspace == "owner" {
+				return errors.New("tidak bisa menghapus owner workspace")
+			}
+		}
+	}
+
+	if userID == currentUser.ID {
+		return errors.New("tidak bisa menghapus diri sendiri")
+	}
+
+	return s.repo.RemoveMember(workspaceID, userID)
+}
+
+func (s *workspaceService) RemoveMembers(workspaceID uint, userIDs []uint, currentUser *models.User) error {
+	workspace, err := s.repo.GetByID(workspaceID)
+	if err != nil {
+		return errors.New("workspace tidak ditemukan")
+	}
+
+	if currentUser.Role != "admin" {
+		if workspace.CreatedBy != currentUser.ID {
+			currentMember, err := s.repo.GetWorkspaceMember(workspaceID, currentUser.ID)
+			if err != nil {
+				return errors.New("anda bukan member workspace ini")
+			}
+			if *currentMember.RoleInWorkspace != "admin" {
+				return errors.New("role Anda tidak cukup untuk menghapus member")
+			}
+		}
+	}
+
+	for _, userID := range userIDs {
+		_, err := s.repo.GetWorkspaceMember(workspaceID, userID)
+		if err != nil {
+			return fmt.Errorf("user %d tidak ditemukan di workspace ini", userID)
+		}
+
+		if userID == currentUser.ID {
+			return fmt.Errorf("tidak bisa menghapus diri sendiri (user_id: %d)", userID)
+		}
+	}
+
+	return s.repo.RemoveMembers(workspaceID, userIDs)
 }
