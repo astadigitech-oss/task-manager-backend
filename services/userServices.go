@@ -40,7 +40,6 @@ type PaginatedUsersResponse struct {
 }
 
 func (s *userService) GetAllUsers(currentUser *models.User) ([]models.User, error) {
-	// Hanya admin yang bisa melihat semua users
 	if currentUser.Role != "admin" {
 		return nil, errors.New("hanya admin yang bisa mengakses semua user")
 	}
@@ -57,7 +56,7 @@ func (s *userService) GetAllUsersPaginated(page, limit int, currentUser *models.
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
-		limit = 20 // default limit
+		limit = 2
 	}
 
 	users, total, err := s.repo.GetAllUsersPaginated(page, limit)
@@ -84,7 +83,6 @@ func (s *userService) GetAllUsersWithFilters(filters UserFilters, currentUser *m
 		return PaginatedUsersResponse{}, errors.New("hanya admin yang bisa mengakses semua user")
 	}
 
-	// Set default values
 	if filters.Page < 1 {
 		filters.Page = 1
 	}
@@ -92,7 +90,6 @@ func (s *userService) GetAllUsersWithFilters(filters UserFilters, currentUser *m
 		filters.Limit = 20
 	}
 
-	// Convert to repository filters
 	repoFilters := repositories.UserFilters{
 		Search:   filters.Search,
 		Role:     filters.Role,
@@ -121,7 +118,6 @@ func (s *userService) GetAllUsersWithFilters(filters UserFilters, currentUser *m
 }
 
 func (s *userService) GetUserByID(userID uint, currentUser *models.User) (*models.User, error) {
-	// Admin bisa lihat semua, user biasa hanya bisa lihat dirinya sendiri
 	if currentUser.Role != "admin" && currentUser.ID != userID {
 		return nil, errors.New("hanya bisa melihat profil sendiri")
 	}
@@ -130,7 +126,6 @@ func (s *userService) GetUserByID(userID uint, currentUser *models.User) (*model
 }
 
 func (s *userService) SearchUsers(query string, currentUser *models.User) ([]models.User, error) {
-	// Hanya admin yang bisa search semua users
 	if currentUser.Role != "admin" {
 		return nil, errors.New("hanya admin yang bisa mencari semua user")
 	}
@@ -143,7 +138,6 @@ func (s *userService) SearchUsers(query string, currentUser *models.User) ([]mod
 }
 
 func (s *userService) GetUsersWithDetails(userIDs []uint, currentUser *models.User) ([]models.User, error) {
-	// Hanya admin yang bisa get multiple users with details
 	if currentUser.Role != "admin" {
 		return nil, errors.New("hanya admin yang bisa mengakses detail multiple users")
 	}
