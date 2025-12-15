@@ -63,8 +63,16 @@ func (uc *UserController) GetAllUsers(c *gin.Context) {
 			"name":       user.Name,
 			"email":      user.Email,
 			"role":       user.Role,
+			"is_online":  user.IsOnline,
 			"created_at": user.CreatedAt.Format("2006-01-02 15:04:05"),
 			"updated_at": user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// Add last_seen if available
+		if user.LastSeen != nil {
+			userData["last_seen"] = user.LastSeen.Format("2006-01-02 15:04:05")
+		} else {
+			userData["last_seen"] = nil
 		}
 
 		// Add position if exists
@@ -226,7 +234,6 @@ func (uc *UserController) GetUserStats(c *gin.Context) {
 	})
 }
 
-// Get users by multiple IDs (for batch operations)
 func (uc *UserController) GetUsersByIDs(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 

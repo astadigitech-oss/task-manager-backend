@@ -13,6 +13,8 @@ type User struct {
 	Password   string         `json:"-"`
 	Role       string         `json:"role"`
 	Position   *string        `json:"position"` // Jabatan, nullable
+	IsOnline   bool           `gorm:"default:false" json:"is_online"`
+	LastSeen   *time.Time     `json:"last_seen,omitempty"`
 	Workspaces []Workspace    `gorm:"many2many:workspace_users" json:"workspaces"`
 	Projects   []Project      `gorm:"many2many:project_users" json:"projects"`
 	Tasks      []TaskUser     `gorm:"foreignKey:UserID" json:"tasks"`

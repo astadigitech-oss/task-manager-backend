@@ -50,10 +50,20 @@ func SetupRoutes(r *gin.Engine) {
 		auth.GET("/profile", authMiddleware, authController.GetProfile) // Ini butuh auth
 	}
 
+	// web socket
+	ws := r.Group("/ws")
+	{
+		ws.GET("", func(c *gin.Context) {
+			controllers.ServeWs(c, authService)
+		})
+	}
+
 	//Protected Routes
 	api := r.Group("/api")
 	api.Use(authMiddleware)
 	{
+		api.GET("/online-users", adminMiddleware, controllers.GetOnlineUsers)
+
 		// Workspace
 		workspaces := api.Group("/workspaces")
 		{

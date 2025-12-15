@@ -6,11 +6,33 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/routes"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+func CleanupOnlineStatus() {
+	log.Println("Cleaning up user online status...")
+
+	now := time.Now()
+	result := config.DB.Model(&models.User{}).Where("is_online = ?", true).Updates(map[string]interface{}{
+		"is_online": false,
+		"last_seen": &now,
+	})
+
+	if result.Error != nil {
+		log.Printf("Error cleaning up online status: %v", result.Error)
+		return
+	}
+
+	if result.RowsAffected > 0 {
+		log.Printf("Reset online status for %d user(s).", result.RowsAffected)
+	} else {
+		log.Println("No lingering online users found. Clean.")
+	}
+}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -37,6 +59,9 @@ func main() {
 		log.Fatal("Migration error: ", err)
 	}
 
+	// Clean up any stale online statuses from a previous crash/restart
+	CleanupOnlineStatus()
+
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
@@ -48,6 +73,7 @@ func main() {
 	}))
 
 	routes.SetupRoutes(router)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

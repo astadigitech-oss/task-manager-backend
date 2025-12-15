@@ -53,7 +53,6 @@ func (r *userRepository) GetByEmail(email string) (*models.User, error) {
 func (r *userRepository) GetAllUsers() ([]models.User, error) {
 	var users []models.User
 	err := config.DB.
-		Select("id, name, email, role, position, created_at, updated_at").
 		Where("deleted_at IS NULL").
 		Order("created_at DESC").
 		Find(&users).Error
@@ -76,7 +75,6 @@ func (r *userRepository) GetAllUsersPaginated(page, limit int) ([]models.User, i
 
 	// Get paginated data
 	err = config.DB.
-		Select("id, name, email, role, position, created_at, updated_at").
 		Where("deleted_at IS NULL").
 		Order("created_at DESC").
 		Offset(offset).
@@ -91,7 +89,6 @@ func (r *userRepository) GetAllUsersWithFilters(filters UserFilters) ([]models.U
 	var total int64
 
 	query := config.DB.Model(&models.User{}).
-		Select("id, name, email, role, position, created_at, updated_at").
 		Where("deleted_at IS NULL")
 
 	// Apply filters
@@ -128,7 +125,6 @@ func (r *userRepository) GetAllUsersWithFilters(filters UserFilters) ([]models.U
 func (r *userRepository) GetUserByID(userID uint) (*models.User, error) {
 	var user models.User
 	err := config.DB.
-		Select("id, name, email, role, position, created_at, updated_at").
 		Where("id = ? AND deleted_at IS NULL", userID).
 		First(&user).Error
 	return &user, err
@@ -139,7 +135,6 @@ func (r *userRepository) SearchUsers(queryStr string) ([]models.User, error) {
 
 	search := "%" + queryStr + "%"
 	err := config.DB.
-		Select("id, name, email, role, position, created_at").
 		Where("deleted_at IS NULL AND (name LIKE ? OR email LIKE ?)", search, search).
 		Order("name ASC").
 		Limit(20). // Limit untuk autocomplete
@@ -152,7 +147,6 @@ func (r *userRepository) GetUsersWithDetails(userIDs []uint) ([]models.User, err
 	var users []models.User
 
 	err := config.DB.
-		Select("id, name, email, role, position, created_at").
 		Where("id IN ? AND deleted_at IS NULL", userIDs).
 		Order("name ASC").
 		Find(&users).Error
