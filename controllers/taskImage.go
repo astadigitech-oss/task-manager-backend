@@ -106,7 +106,6 @@ func (tic *TaskImageController) UploadTaskImage(c *gin.Context) {
 	})
 }
 
-// ✅ DELETE TASK IMAGE - Pattern sama dengan Project Image
 func (tic *TaskImageController) DeleteTaskImage(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {

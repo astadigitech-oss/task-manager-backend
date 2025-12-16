@@ -62,6 +62,7 @@ func SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(authMiddleware)
 	{
+		// Online Users
 		api.GET("/online-users", adminMiddleware, controllers.GetOnlineUsers)
 
 		// Workspace
@@ -81,6 +82,8 @@ func SetupRoutes(r *gin.Engine) {
 				workspace.POST("/members", adminMiddleware, workspaceController.AddMembers)
 				workspace.DELETE("/members/:user_id", adminMiddleware, workspaceController.RemoveSingleMember)
 				workspace.DELETE("/members/", adminMiddleware, workspaceController.RemoveMember)
+
+				workspace.GET("/online-members", controllers.GetOnlineWorkspaceMembers)
 			}
 		}
 
@@ -103,7 +106,7 @@ func SetupRoutes(r *gin.Engine) {
 				project.DELETE("", adminMiddleware, projectController.SoftDeleteProject)
 				project.DELETE("/permanent", adminMiddleware, projectController.DeleteProject)
 
-				project.GET("/members", adminMiddleware, projectController.GetMembers)
+				project.GET("/members", projectController.GetMembers)
 				project.POST("/members", adminMiddleware, projectController.AddMember)
 				project.DELETE("/members/:user_id", adminMiddleware, projectController.RemoveSingleMember)
 				project.DELETE("/members/", adminMiddleware, projectController.RemoveMember)

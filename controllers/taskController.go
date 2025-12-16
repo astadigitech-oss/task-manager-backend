@@ -21,12 +21,14 @@ func NewTaskController(service services.TaskService) *TaskController {
 func (tc *TaskController) ListTasks(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -34,6 +36,7 @@ func (tc *TaskController) ListTasks(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 	tasks, err := tc.Service.GetAllTasks(projectID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "list_tasks", "task", 0, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -50,12 +53,14 @@ func (tc *TaskController) ListTasks(c *gin.Context) {
 func (tc *TaskController) CreateTask(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -71,6 +76,7 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -89,6 +95,7 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 	}
 
 	if err := tc.Service.CreateTask(&task, workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "create_task", "task", 0, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -107,12 +114,14 @@ func (tc *TaskController) CreateTask(c *gin.Context) {
 func (tc *TaskController) DetailTask(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -121,6 +130,7 @@ func (tc *TaskController) DetailTask(c *gin.Context) {
 
 	task, err := tc.Service.GetByID(taskID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_task_by_id", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -137,12 +147,14 @@ func (tc *TaskController) DetailTask(c *gin.Context) {
 func (tc *TaskController) UpdateTask(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -158,6 +170,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "task", taskID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -166,6 +179,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 
 	oldTask, err := tc.Service.GetByID(taskID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_task_before_update", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": "Task tidak ditemukan"})
 		return
 	}
@@ -182,6 +196,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 	}
 
 	if err := tc.Service.UpdateTask(&task, workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "update_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -189,6 +204,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 	// Get data baru setelah update
 	updatedTask, err := tc.Service.GetByID(taskID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_task_after_update", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": "Gagal mengambil data task setelah update"})
 		return
 	}
@@ -218,12 +234,14 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 func (tc *TaskController) SoftDeleteTask(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -231,6 +249,7 @@ func (tc *TaskController) SoftDeleteTask(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 
 	if err := tc.Service.SoftDeleteTask(taskID, workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "soft_delete_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -246,12 +265,14 @@ func (tc *TaskController) SoftDeleteTask(c *gin.Context) {
 func (tc *TaskController) DeleteTask(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -261,6 +282,7 @@ func (tc *TaskController) DeleteTask(c *gin.Context) {
 	// Get task info untuk show warning
 	task, err := tc.Service.GetByID(taskID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_task_before_hard_delete", "task", taskID, err.Error(), "")
 		c.JSON(404, gin.H{"error": "Task tidak ditemukan"})
 		return
 	}
@@ -269,6 +291,7 @@ func (tc *TaskController) DeleteTask(c *gin.Context) {
 		Confirm bool `json:"confirm"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil || !input.Confirm {
+		utils.Error(currentUser.ID, "confirm_hard_delete", "task", taskID, "Confirmation required for hard delete", "")
 		c.JSON(400, gin.H{
 			"error":   "Konfirmasi diperlukan untuk hard delete",
 			"warning": "Tindakan ini akan menghapus PERMANEN:",
@@ -283,6 +306,7 @@ func (tc *TaskController) DeleteTask(c *gin.Context) {
 	}
 
 	if err := tc.Service.DeleteTask(taskID, workspaceID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "hard_delete_task", "task", taskID, err.Error(), "")
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -303,12 +327,14 @@ func (tc *TaskController) DeleteTask(c *gin.Context) {
 func (tc *TaskController) AddMember(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -319,6 +345,7 @@ func (tc *TaskController) AddMember(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json_add_member", "task", taskID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -326,6 +353,7 @@ func (tc *TaskController) AddMember(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 
 	if err := tc.Service.AddMember(taskID, workspaceID, input.UserID, input.Role, currentUser); err != nil {
+		utils.Error(currentUser.ID, "add_member_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -347,12 +375,14 @@ func (tc *TaskController) AddMember(c *gin.Context) {
 func (tc *TaskController) GetMembers(c *gin.Context) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -361,6 +391,7 @@ func (tc *TaskController) GetMembers(c *gin.Context) {
 
 	members, err := tc.Service.GetMembers(taskID, workspaceID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_members_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}

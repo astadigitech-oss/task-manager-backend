@@ -24,6 +24,7 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 
 	projects, err := pc.Service.GetAllProjects(currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "list_projects", "project", 0, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -56,6 +57,7 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 		WorkspaceID uint   `json:"workspace_id"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -69,6 +71,7 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 	}
 
 	if err := pc.Service.CreateProject(&project, currentUser); err != nil {
+		utils.Error(currentUser.ID, "create_project", "project", 0, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -91,6 +94,7 @@ func (pc *ProjectController) CreateProject(c *gin.Context) {
 func (pc *ProjectController) DetailProject(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -99,6 +103,7 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 
 	project, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_project_by_id", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -120,6 +125,7 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 func (pc *ProjectController) UpdateProject(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -129,6 +135,7 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "project", projectID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -138,6 +145,7 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 	// Get data lama sebelum update
 	oldProject, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_project_before_update", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": "Project tidak ditemukan"})
 		return
 	}
@@ -149,6 +157,7 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 	}
 
 	if err := pc.Service.UpdateProject(&project, currentUser); err != nil {
+		utils.Error(currentUser.ID, "update_project", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -156,6 +165,7 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 	// Get data baru setelah update
 	updatedProject, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_project_after_update", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": "Gagal mengambil data project setelah update"})
 		return
 	}
@@ -178,6 +188,7 @@ func (pc *ProjectController) UpdateProject(c *gin.Context) {
 func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -186,11 +197,13 @@ func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
 
 	oldProject, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_project_before_soft_delete", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": "Project tidak ditemukan"})
 		return
 	}
 
 	if err := pc.Service.SoftDeleteProject(projectID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "soft_delete_project", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -207,6 +220,7 @@ func (pc *ProjectController) SoftDeleteProject(c *gin.Context) {
 func (pc *ProjectController) DeleteProject(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -215,6 +229,7 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 
 	project, err := pc.Service.GetByID(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_project_before_hard_delete", "project", projectID, err.Error(), "")
 		c.JSON(404, gin.H{"error": "Project tidak ditemukan"})
 		return
 	}
@@ -223,6 +238,7 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 		Confirm bool `json:"confirm"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil || !input.Confirm {
+		utils.Error(currentUser.ID, "confirm_hard_delete", "project", projectID, "Confirmation required for hard delete", "")
 		c.JSON(400, gin.H{
 			"error":   "Konfirmasi diperlukan untuk hard delete",
 			"warning": "Tindakan ini akan menghapus PERMANEN:",
@@ -238,6 +254,7 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 	}
 
 	if err := pc.Service.DeleteProject(projectID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "hard_delete_project", "project", projectID, err.Error(), "")
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -261,6 +278,7 @@ func (pc *ProjectController) DeleteProject(c *gin.Context) {
 func (pc *ProjectController) AddMember(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -273,6 +291,7 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json_add_member", "project", projectID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -288,6 +307,7 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 
 	if err := pc.Service.AddMembers(projectID, projectMembers, currentUser); err != nil {
+		utils.Error(currentUser.ID, "add_members", "project", projectID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -324,6 +344,7 @@ func (pc *ProjectController) AddMember(c *gin.Context) {
 func (pc *ProjectController) GetMembers(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -332,6 +353,7 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 
 	members, err := pc.Service.GetMembers(projectID, currentUser)
 	if err != nil {
+		utils.Error(currentUser.ID, "get_members", "project", projectID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
 	}
@@ -357,6 +379,7 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 func (pc *ProjectController) RemoveMember(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -366,6 +389,7 @@ func (pc *ProjectController) RemoveMember(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json_remove_member", "project", projectID, err.Error(), "")
 		c.JSON(400, gin.H{"error": "Format data tidak valid: " + err.Error()})
 		return
 	}
@@ -374,11 +398,13 @@ func (pc *ProjectController) RemoveMember(c *gin.Context) {
 
 	if len(input.UserIDs) == 1 {
 		if err := pc.Service.RemoveMember(projectID, input.UserIDs[0], currentUser); err != nil {
+			utils.Error(currentUser.ID, "remove_single_member", "project", projectID, err.Error(), "")
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 	} else {
 		if err := pc.Service.RemoveMembers(projectID, input.UserIDs, currentUser); err != nil {
+			utils.Error(currentUser.ID, "remove_multiple_members", "project", projectID, err.Error(), "")
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
@@ -404,18 +430,21 @@ func (pc *ProjectController) RemoveMember(c *gin.Context) {
 func (pc *ProjectController) RemoveSingleMember(c *gin.Context) {
 	projectID, err := ParseUintParam(c, "project_id")
 	if err != nil {
+		utils.Error(0, "parse_project_id", "project", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	memberIDStr := c.Param("user_id")
 	if memberIDStr == "" {
+		utils.Error(0, "get_user_id_param", "project", projectID, "user_id is required", "")
 		c.JSON(400, gin.H{"error": "user_id is required"})
 		return
 	}
 
 	memberID, err := strconv.ParseUint(memberIDStr, 10, 32)
 	if err != nil {
+		utils.Error(0, "parse_user_id", "project", projectID, "invalid user_id", "")
 		c.JSON(400, gin.H{"error": "invalid user_id"})
 		return
 	}
@@ -423,6 +452,7 @@ func (pc *ProjectController) RemoveSingleMember(c *gin.Context) {
 	currentUser := GetCurrentUser(c)
 
 	if err := pc.Service.RemoveMember(projectID, uint(memberID), currentUser); err != nil {
+		utils.Error(currentUser.ID, "remove_single_member_param", "project", projectID, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}

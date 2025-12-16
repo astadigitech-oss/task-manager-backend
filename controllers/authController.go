@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"project-management-backend/models"
 	"project-management-backend/services"
+	"project-management-backend/utils"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "auth", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -45,6 +47,7 @@ func (ac *AuthController) Register(c *gin.Context) {
 
 	if err := ac.AuthService.Register(user); err != nil {
 		errorMsg := err.Error()
+		utils.Error(0, "register", "auth", 0, errorMsg, "")
 
 		if errorMsg == "email sudah terdaftar" {
 			c.JSON(400, gin.H{
@@ -92,12 +95,14 @@ func (ac *AuthController) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		utils.Error(0, "bind_json", "auth", 0, err.Error(), "")
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	token, user, err := ac.AuthService.Login(input.Email, input.Password)
 	if err != nil {
+		utils.Error(0, "login", "auth", 0, err.Error(), "")
 		c.JSON(401, gin.H{"error": err.Error()})
 		return
 	}
@@ -123,6 +128,7 @@ func (ac *AuthController) Login(c *gin.Context) {
 func (ac *AuthController) GetProfile(c *gin.Context) {
 	user, exists := c.Get("currentUser")
 	if !exists {
+		utils.Error(0, "get_profile", "auth", 0, "User not authenticated", "")
 		c.JSON(401, gin.H{"error": "User tidak terautentikasi"})
 		return
 	}

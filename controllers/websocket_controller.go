@@ -7,6 +7,7 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/services"
+	"project-management-backend/utils"
 	"strconv"
 	"time"
 
@@ -50,6 +51,7 @@ func (c *Client) readPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				utils.Error(c.userID, "read_message", "websocket", c.workspaceID, err.Error(), "")
 				log.Printf("error: %v", err)
 			}
 			break
@@ -73,15 +75,18 @@ func (c *Client) writePump() {
 			}
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				utils.Error(c.userID, "next_writer", "websocket", c.workspaceID, err.Error(), "")
 				return
 			}
 			w.Write(message)
 			if err := w.Close(); err != nil {
+				utils.Error(c.userID, "close_writer", "websocket", c.workspaceID, err.Error(), "")
 				return
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				utils.Error(c.userID, "ping", "websocket", c.workspaceID, err.Error(), "")
 				return
 			}
 		}
@@ -160,6 +165,7 @@ func ServeWs(c *gin.Context, authService services.AuthService) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
+		utils.Error(0, "upgrade_connection", "websocket", 0, err.Error(), "")
 		return
 	}
 
@@ -168,6 +174,7 @@ func ServeWs(c *gin.Context, authService services.AuthService) {
 	workspaceID, err := strconv.ParseUint(workspaceIDStr, 10, 64)
 	if err != nil {
 		log.Println("Invalid workspace ID format from client")
+		utils.Error(0, "parse_workspace_id", "websocket", 0, "Invalid workspace ID format from client", "")
 		msg := websocket.FormatCloseMessage(websocket.CloseInvalidFramePayloadData, "Invalid workspace ID format")
 		conn.WriteMessage(websocket.CloseMessage, msg)
 		conn.Close()
@@ -177,6 +184,7 @@ func ServeWs(c *gin.Context, authService services.AuthService) {
 	user, err := authService.GetUserFromToken(token)
 	if err != nil {
 		log.Println("Invalid token for websocket connection")
+		utils.Error(0, "get_user_from_token", "websocket", uint(workspaceID), "Invalid token for websocket connection", "")
 		msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Invalid or expired token")
 		conn.WriteMessage(websocket.CloseMessage, msg)
 		conn.Close()
@@ -189,12 +197,14 @@ func ServeWs(c *gin.Context, authService services.AuthService) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("Access denied: User %d is not a member of workspace %d", user.ID, workspaceID)
+			utils.Error(user.ID, "access_denied", "websocket", uint(workspaceID), "Access Denied: Not a workspace member", "")
 			msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Access Denied: Not a workspace member")
 			conn.WriteMessage(websocket.CloseMessage, msg)
 			conn.Close()
 			return
 		}
 		log.Printf("Database error checking membership: %v", err)
+		utils.Error(user.ID, "check_membership", "workspace_users", uint(workspaceID), err.Error(), "")
 		msg := websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Database error")
 		conn.WriteMessage(websocket.CloseMessage, msg)
 		conn.Close()
@@ -212,6 +222,7 @@ func updateUserOnlineStatus(userID uint, isOnline bool) {
 	var user models.User
 	if err := config.DB.First(&user, userID).Error; err != nil {
 		log.Printf("Failed to find user %d: %v", userID, err)
+		utils.Error(userID, "find_user", "users", userID, err.Error(), "")
 		return
 	}
 
@@ -223,6 +234,7 @@ func updateUserOnlineStatus(userID uint, isOnline bool) {
 
 	if err := config.DB.Save(&user).Error; err != nil {
 		log.Printf("Failed to update user %d status: %v", userID, err)
+		utils.Error(userID, "update_user_status", "users", userID, err.Error(), "")
 	}
 }
 
@@ -316,4 +328,54 @@ func GetOnlineUsers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responseData)
+}
+
+func GetOnlineWorkspaceMembers(c *gin.Context) {
+	workspaceIDStr := c.Param("workspace_id")
+	workspaceID, err := strconv.ParseUint(workspaceIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID format"})
+		return
+	}
+
+	user, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	currentUser := user.(*models.User)
+
+	var membership models.WorkspaceUser
+	err = config.DB.Where("user_id = ? AND workspace_id = ?", currentUser.ID, workspaceID).First(&membership).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to this workspace"})
+			return
+		}
+		utils.Error(currentUser.ID, "check_membership", "workspace_users", uint(workspaceID), err.Error(), "")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error checking membership"})
+		return
+	}
+
+	var memberIDs []uint
+	err = config.DB.Model(&models.WorkspaceUser{}).Where("workspace_id = ?", workspaceID).Pluck("user_id", &memberIDs).Error
+	if err != nil {
+		utils.Error(currentUser.ID, "get_workspace_members", "workspace_users", uint(workspaceID), err.Error(), "")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch workspace members"})
+		return
+	}
+
+	var onlineUsers []models.User
+	if len(memberIDs) > 0 {
+		err = config.DB.Where("id IN ? AND is_online = ?", memberIDs, true).Find(&onlineUsers).Error
+		if err != nil {
+			utils.Error(currentUser.ID, "get_online_workspace_members", "users", uint(workspaceID), err.Error(), "")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch online users for workspace"})
+			return
+		}
+	} else {
+		onlineUsers = []models.User{}
+	}
+
+	c.JSON(http.StatusOK, onlineUsers)
 }
