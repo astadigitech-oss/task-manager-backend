@@ -13,6 +13,9 @@ type UserService interface {
 	GetUserByID(userID uint, currentUser *models.User) (*models.User, error)
 	SearchUsers(query string, currentUser *models.User) ([]models.User, error)
 	GetUsersWithDetails(userIDs []uint, currentUser *models.User) ([]models.User, error)
+	GetOnlineUsers() ([]models.User, error)
+	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
+	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
 }
 
 type userService struct {
@@ -143,4 +146,15 @@ func (s *userService) GetUsersWithDetails(userIDs []uint, currentUser *models.Us
 	}
 
 	return s.repo.GetUsersWithDetails(userIDs)
+}
+func (s *userService) GetOnlineUsers() ([]models.User, error) {
+	return s.repo.GetOnlineUsers()
+}
+
+func (s *userService) GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error) {
+	return s.repo.GetOnlineWorkspaceMembers(workspaceID)
+}
+
+func (s *userService) IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error) {
+	return s.repo.IsUserMemberOfWorkspace(userID, workspaceID)
 }

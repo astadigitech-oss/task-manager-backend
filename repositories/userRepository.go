@@ -3,6 +3,7 @@ package repositories
 import (
 	"project-management-backend/config"
 	"project-management-backend/models"
+	"time"
 )
 
 type UserRepository interface {
@@ -15,6 +16,10 @@ type UserRepository interface {
 	GetUserByID(userID uint) (*models.User, error)
 	SearchUsers(query string) ([]models.User, error)
 	GetUsersWithDetails(userIDs []uint) ([]models.User, error)
+	UpdateUserOnlineStatus(userID uint, isOnline bool) error
+	GetOnlineUsers() ([]models.User, error)
+	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
+	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
 }
 
 type userRepository struct{}
@@ -152,4 +157,54 @@ func (r *userRepository) GetUsersWithDetails(userIDs []uint) ([]models.User, err
 		Find(&users).Error
 
 	return users, err
+}
+
+func (r *userRepository) UpdateUserOnlineStatus(userID uint, isOnline bool) error {
+	var user models.User
+	if err := config.DB.First(&user, userID).Error; err != nil {
+		return err
+	}
+
+	user.IsOnline = isOnline
+	now := time.Now()
+	if !isOnline {
+		user.LastSeen = &now
+	}
+
+	return config.DB.Save(&user).Error
+}
+
+func (r *userRepository) GetOnlineUsers() ([]models.User, error) {
+	var users []models.User
+	err := config.DB.
+		Preload("Workspaces").
+		Preload("Projects").
+		Preload("Tasks.Task").
+		Where("is_online = ?", true).
+		Find(&users).Error
+	return users, err
+}
+
+func (r *userRepository) GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error) {
+	var memberIDs []uint
+	err := config.DB.Model(&models.WorkspaceUser{}).Where("workspace_id = ?", workspaceID).Pluck("user_id", &memberIDs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var onlineUsers []models.User
+	if len(memberIDs) > 0 {
+		err = config.DB.Where("id IN ? AND is_online = ?", memberIDs, true).Find(&onlineUsers).Error
+	}
+
+	return onlineUsers, err
+}
+
+func (r *userRepository) IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error) {
+	var membership models.WorkspaceUser
+	err := config.DB.Where("user_id = ? AND workspace_id = ?", userID, workspaceID).First(&membership).Error
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

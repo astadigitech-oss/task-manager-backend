@@ -291,3 +291,89 @@ func (uc *UserController) GetUsersByIDs(c *gin.Context) {
 		},
 	})
 }
+
+func (uc *UserController) GetOnlineUsers(c *gin.Context) {
+	users, err := uc.Service.GetOnlineUsers()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get online users"})
+		return
+	}
+
+	response := []utils.OnlineUserResponse{}
+	for _, user := range users {
+		workspaces := []utils.SimpleWorkspace{}
+		for _, ws := range user.Workspaces {
+			workspaces = append(workspaces, utils.SimpleWorkspace{ID: ws.ID, Name: ws.Name})
+		}
+
+		projects := []utils.SimpleProject{}
+		for _, proj := range user.Projects {
+			projects = append(projects, utils.SimpleProject{ID: proj.ID, Name: proj.Name})
+		}
+
+		tasks := []utils.SimpleTask{}
+		for _, taskMember := range user.Tasks {
+			tasks = append(tasks, utils.SimpleTask{ID: taskMember.Task.ID, Title: taskMember.Task.Title})
+		}
+
+		response = append(response, utils.OnlineUserResponse{
+			ID:         user.ID,
+			Name:       user.Name,
+			Email:      user.Email,
+			Role:       user.Role,
+			IsOnline:   user.IsOnline,
+			LastSeen:   user.LastSeen,
+			Workspaces: workspaces,
+			Projects:   projects,
+			Tasks:      tasks,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func (uc *UserController) GetOnlineWorkspaceMembers(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	users, err := uc.Service.GetOnlineWorkspaceMembers(workspaceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get online workspace members"})
+		return
+	}
+
+	response := []utils.OnlineUserResponse{}
+	for _, user := range users {
+		workspaces := []utils.SimpleWorkspace{}
+		for _, ws := range user.Workspaces {
+			workspaces = append(workspaces, utils.SimpleWorkspace{ID: ws.ID, Name: ws.Name})
+		}
+
+		projects := []utils.SimpleProject{}
+		for _, proj := range user.Projects {
+			projects = append(projects, utils.SimpleProject{ID: proj.ID, Name: proj.Name})
+		}
+
+		tasks := []utils.SimpleTask{}
+		for _, taskMember := range user.Tasks {
+			tasks = append(tasks, utils.SimpleTask{ID: taskMember.Task.ID, Title: taskMember.Task.Title})
+		}
+
+		response = append(response, utils.OnlineUserResponse{
+			ID:         user.ID,
+			Name:       user.Name,
+			Email:      user.Email,
+			Role:       user.Role,
+			IsOnline:   user.IsOnline,
+			LastSeen:   user.LastSeen,
+			Workspaces: workspaces,
+			Projects:   projects,
+			Tasks:      tasks,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}

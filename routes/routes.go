@@ -30,6 +30,7 @@ func SetupRoutes(r *gin.Engine) {
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)
+	webSocketService := services.NewWebSocketService(userRepo, workspaceRepo, projectRepo, taskRepo)
 
 	//controllers
 	taskImageController := controllers.NewTaskImageController(taskImageService)
@@ -38,9 +39,13 @@ func SetupRoutes(r *gin.Engine) {
 	projectImageController := controllers.NewProjectImageController(projectImageService)
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
 	userController := controllers.NewUserController(userService)
+	webSocketController := controllers.NewWebSocketController(authService, webSocketService, userService)
 
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
+
+	// Jalankan WebSocket Hub
+	go webSocketService.RunHub()
 
 	//public routes
 	auth := r.Group("/auth")
@@ -53,9 +58,7 @@ func SetupRoutes(r *gin.Engine) {
 	// web socket
 	ws := r.Group("/ws")
 	{
-		ws.GET("", func(c *gin.Context) {
-			controllers.ServeWs(c, authService)
-		})
+		ws.GET("", webSocketController.ServeWs)
 	}
 
 	//Protected Routes
@@ -63,7 +66,7 @@ func SetupRoutes(r *gin.Engine) {
 	api.Use(authMiddleware)
 	{
 		// Online Users
-		api.GET("/online-users", adminMiddleware, controllers.GetOnlineUsers)
+		api.GET("/online-users", adminMiddleware, userController.GetOnlineUsers)
 
 		// Workspace
 		workspaces := api.Group("/workspaces")
@@ -83,7 +86,7 @@ func SetupRoutes(r *gin.Engine) {
 				workspace.DELETE("/members/:user_id", adminMiddleware, workspaceController.RemoveSingleMember)
 				workspace.DELETE("/members/", adminMiddleware, workspaceController.RemoveMember)
 
-				workspace.GET("/online-members", controllers.GetOnlineWorkspaceMembers)
+				workspace.GET("/online-members", userController.GetOnlineWorkspaceMembers)
 			}
 		}
 
@@ -94,7 +97,7 @@ func SetupRoutes(r *gin.Engine) {
 		}
 
 		// Project
-		projects := api.Group("projects")
+		projects := api.Group("/projects")
 		{
 			projects.GET("", projectController.ListProjects)
 			projects.POST("", adminMiddleware, projectController.CreateProject)

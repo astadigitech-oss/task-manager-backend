@@ -73,11 +73,11 @@ func (ac *AuthController) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(201, gin.H{
-		"success": true,
-		"code":    201,
-		"message": "User berhasil didaftarkan",
-		"data": gin.H{
+	c.JSON(201, APIResponse{
+		Success: true,
+		Code:    201,
+		Message: "User berhasil didaftarkan",
+		Data: gin.H{
 			"id":       user.ID,
 			"name":     user.Name,
 			"email":    user.Email,
@@ -135,11 +135,11 @@ func (ac *AuthController) GetProfile(c *gin.Context) {
 
 	currentUser := user.(*models.User)
 
-	c.JSON(200, gin.H{
-		"success": true,
-		"code":    200,
-		"message": "Profile berhasil diambil",
-		"data": gin.H{
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Profile berhasil diambil",
+		Data: gin.H{
 			"id":       currentUser.ID,
 			"name":     currentUser.Name,
 			"email":    currentUser.Email,

@@ -1,29 +1,36 @@
 package utils
 
-import "project-management-backend/models"
+import (
+	"time"
+)
 
-type UserResponse struct {
+// SimpleWorkspace adalah representasi ramping dari sebuah workspace.
+type SimpleWorkspace struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+// SimpleProject adalah representasi ramping dari sebuah project.
+type SimpleProject struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+}
+
+// SimpleTask adalah representasi ramping dari sebuah task.
+type SimpleTask struct {
 	ID    uint   `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	Title string `json:"title"`
 }
 
-// Mapper single
-func ToUserResponse(user *models.User) UserResponse {
-	return UserResponse{
-		ID:    user.ID,
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
-	}
-}
-
-// Mapper list
-func ToUserResponseList(users []models.User) []UserResponse {
-	resp := make([]UserResponse, len(users))
-	for i, u := range users {
-		resp[i] = ToUserResponse(&u)
-	}
-	return resp
+// OnlineUserResponse mendefinisikan struktur untuk endpoint /api/online-users.
+type OnlineUserResponse struct {
+	ID         uint              `json:"id"`
+	Name       string            `json:"name"`
+	Email      string            `json:"email"`
+	Role       string            `json:"role"`
+	IsOnline   bool              `json:"is_online"`
+	LastSeen   *time.Time        `json:"last_seen,omitempty"`
+	Workspaces []SimpleWorkspace `json:"workspaces"`
+	Projects   []SimpleProject   `json:"projects"`
+	Tasks      []SimpleTask      `json:"tasks"`
 }
