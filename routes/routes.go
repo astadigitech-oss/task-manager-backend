@@ -31,6 +31,7 @@ func SetupRoutes(r *gin.Engine) {
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)
 	webSocketService := services.NewWebSocketService(userRepo, workspaceRepo, projectRepo, taskRepo)
+	dashboardService := services.NewDashboardService(taskRepo)
 
 	//controllers
 	taskImageController := controllers.NewTaskImageController(taskImageService)
@@ -40,6 +41,7 @@ func SetupRoutes(r *gin.Engine) {
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
 	userController := controllers.NewUserController(userService)
 	webSocketController := controllers.NewWebSocketController(authService, webSocketService, userService)
+	dashboardController := controllers.NewDashboardController(dashboardService)
 
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
@@ -65,6 +67,9 @@ func SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(authMiddleware)
 	{
+		// Dashboard
+		api.GET("/dashboard", dashboardController.GetUserDashboard)
+
 		// Online Users
 		api.GET("/online-users", adminMiddleware, userController.GetOnlineUsers)
 

@@ -13,7 +13,7 @@ type TaskService interface {
 	CreateTask(task *models.Task, workspaceID uint, user *models.User) error
 	GetAllTasks(projectID uint, workspaceID uint, user *models.User) ([]models.Task, error)
 	GetByID(taskID uint, workspaceID uint, user *models.User) (*models.Task, error)
-	UpdateTask(task *models.Task, workspaceID uint, user *models.User) error
+	UpdateTask(taskID uint, updates map[string]interface{}, workspaceID uint, user *models.User) error
 	SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error
 	DeleteTask(taskID uint, workspaceID uint, user *models.User) error
 	AddMember(taskID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error
@@ -96,18 +96,48 @@ func (s *taskService) GetByID(taskID uint, workspaceID uint, user *models.User) 
 	return task, nil
 }
 
-func (s *taskService) UpdateTask(task *models.Task, workspaceID uint, user *models.User) error {
-	existingTask, err := s.GetByID(task.ID, workspaceID, user)
+func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, workspaceID uint, user *models.User) error {
+	existingTask, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return errors.New("task tidak ditemukan")
 	}
 
-	isProjectMember, err := s.repo.IsUserInProject(existingTask.ProjectID, user.ID)
-	if err != nil || !isProjectMember {
-		return errors.New("hanya member project yang boleh update task")
+	if existingTask.Project.WorkspaceID != workspaceID {
+		return errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	return s.repo.UpdateTask(task)
+	isPAdmin, err := s.isProjectAdmin(existingTask.ProjectID, user.ID)
+	if err != nil {
+		return errors.New("gagal memvalidasi admin project")
+	}
+
+	if user.Role == "admin" || isPAdmin {
+		return s.repo.UpdateTask(taskID, updates)
+	} else {
+		isMember, err := s.repo.IsUserMember(taskID, user.ID)
+		if err != nil {
+			return errors.New("gagal memvalidasi member task")
+		}
+
+		if !isMember {
+			return errors.New("anda bukan member dari task ini, tidak bisa mengupdate")
+		}
+
+		allowedUpdates := make(map[string]interface{})
+		for key, value := range updates {
+			if key == "status" || key == "notes" {
+				allowedUpdates[key] = value
+			} else {
+				return errors.New("anda hanya diizinkan untuk mengupdate status dan notes")
+			}
+		}
+
+		if len(allowedUpdates) == 0 {
+			return errors.New("tidak ada field yang diizinkan untuk diupdate")
+		}
+
+		return s.repo.UpdateTask(taskID, allowedUpdates)
+	}
 }
 
 func (s *taskService) SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error {

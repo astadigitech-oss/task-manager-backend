@@ -223,11 +223,19 @@ func (s *projectService) GetMembers(projectID uint, user *models.User) ([]models
 		return s.repo.GetMembers(projectID)
 	}
 
-	isProjectMember, _ := s.repo.IsUserMember(projectID, user.ID)
-	isWorkspaceMember, _ := s.workspaceRepo.IsUserMember(project.WorkspaceID, user.ID)
+	if user.Role != "admin" {
+		isProjectMember, err := s.repo.IsUserMember(projectID, user.ID)
+		if err != nil {
+			return nil, errors.New("gagal memvalidasi akses project")
+		}
+		if !isProjectMember {
+			return nil, errors.New("akses ditolak untuk melihat members project")
+		}
 
-	if !isProjectMember && !isWorkspaceMember {
-		return nil, errors.New("akses ditolak untuk melihat members project")
+		isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, user.ID)
+		if err != nil || !isWorkspaceMember {
+			return nil, errors.New("hanya member workspace yang boleh melihat members project")
+		}
 	}
 
 	return s.repo.GetMembers(projectID)

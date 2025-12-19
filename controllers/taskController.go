@@ -159,19 +159,10 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		Title       string    `json:"title"`
-		Description string    `json:"description"`
-		Status      string    `json:"status"`
-		Priority    string    `json:"priority"`
-		StartDate   time.Time `json:"start_date"`
-		DueDate     time.Time `json:"due_date"`
-		Notes       *string   `json:"notes"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var updates map[string]interface{}
+	if err := c.ShouldBindJSON(&updates); err != nil {
 		utils.Error(0, "bind_json", "task", taskID, err.Error(), "")
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": "Invalid request body"})
 		return
 	}
 
@@ -184,18 +175,7 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	task := models.Task{
-		ID:          taskID,
-		Title:       input.Title,
-		Description: input.Description,
-		Status:      input.Status,
-		Priority:    input.Priority,
-		StartDate:   input.StartDate,
-		DueDate:     input.DueDate,
-		Notes:       input.Notes,
-	}
-
-	if err := tc.Service.UpdateTask(&task, workspaceID, currentUser); err != nil {
+	if err := tc.Service.UpdateTask(taskID, updates, workspaceID, currentUser); err != nil {
 		utils.Error(currentUser.ID, "update_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
@@ -211,22 +191,12 @@ func (tc *TaskController) UpdateTask(c *gin.Context) {
 
 	utils.ActivityLog(currentUser.ID, "UPDATE_TASK", "task", taskID, oldTask, updatedTask)
 
+	respTask := utils.ToTaskResponse(updatedTask)
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
 		Message: "Task berhasil diupdate",
-		Data: gin.H{
-			"id":          updatedTask.ID,
-			"title":       updatedTask.Title,
-			"description": updatedTask.Description,
-			"status":      updatedTask.Status,
-			"priority":    updatedTask.Priority,
-			"start_date":  updatedTask.StartDate,
-			"due_date":    updatedTask.DueDate,
-			"notes":       updatedTask.Notes,
-			"project_id":  updatedTask.ProjectID,
-			"created_at":  updatedTask.CreatedAt,
-		},
+		Data:    respTask,
 	})
 }
 

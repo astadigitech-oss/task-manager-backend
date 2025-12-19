@@ -12,7 +12,7 @@ type TaskRepository interface {
 	CreateTask(task *models.Task) error
 	GetAllTasks(projectID uint) ([]models.Task, error)
 	GetByID(taskID uint) (*models.Task, error)
-	UpdateTask(task *models.Task) error
+	UpdateTask(taskID uint, updates map[string]interface{}) error
 	SoftDeleteTask(taskID uint) error
 	SoftDeleteAllTasksInProject(projectID uint) error
 	DeleteTask(taskID uint) error // Hard delete
@@ -23,6 +23,7 @@ type TaskRepository interface {
 	IsUserMember(taskID uint, userID uint) (bool, error)
 	IsUserInProject(projectID uint, userID uint) (bool, error)
 	GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error)
+	GetAllTasksByUserID(userID uint) ([]models.Task, error)
 }
 
 type taskRepository struct{}
@@ -41,6 +42,20 @@ func (r *taskRepository) GetAllTasks(projectID uint) ([]models.Task, error) {
 		Joins("JOIN projects ON projects.id = tasks.project_id").
 		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
 		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
+		Preload("Members.User").
+		Preload("Images").
+		Preload("Project").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetAllTasksByUserID(userID uint) ([]models.Task, error) {
+	var tasks []models.Task
+	err := config.DB.
+		Joins("JOIN task_users ON task_users.task_id = tasks.id").
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("task_users.user_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", userID).
 		Preload("Members.User").
 		Preload("Images").
 		Preload("Project").
@@ -88,21 +103,11 @@ func (r *taskRepository) GetByID(taskID uint) (*models.Task, error) {
 	return &task, err
 }
 
-func (r *taskRepository) UpdateTask(task *models.Task) error {
+func (r *taskRepository) UpdateTask(taskID uint, updates map[string]interface{}) error {
 	return config.DB.Model(&models.Task{}).
-		Where("id = ? AND deleted_at IS NULL", task.ID).
-		Updates(map[string]interface{}{
-			"title":       task.Title,
-			"description": task.Description,
-			"status":      task.Status,
-			"priority":    task.Priority,
-			"start_date":  task.StartDate,
-			"due_date":    task.DueDate,
-			"notes":       task.Notes,
-			"updated_at":  time.Now(),
-		}).Error
+		Where("id = ? AND deleted_at IS NULL", taskID).
+		Updates(updates).Error
 }
-
 func (r *taskRepository) SoftDeleteTask(taskID uint) error {
 	return config.DB.Model(&models.Task{}).
 		Where("id = ?", taskID).
