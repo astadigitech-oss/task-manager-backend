@@ -35,6 +35,13 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 		u.Name = name
 	}
 
+	if u.ProfileImage != nil {
+		if err := os.Remove(*u.ProfileImage); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image file"})
+			return
+		}
+	}
+
 	file, err := c.FormFile("profile_image")
 	if err == nil {
 		filename := filepath.Base(file.Filename)
@@ -61,13 +68,13 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 }
 
 func (s *ProfileService) DeleteProfileImage(c *gin.Context) {
-	user, exists := c.Get("user")
+	user, exists := c.Get("currentUser")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
 
-	u := user.(models.User)
+	u := user.(*models.User)
 
 	if u.ProfileImage != nil {
 		if err := os.Remove(*u.ProfileImage); err != nil {
@@ -77,7 +84,7 @@ func (s *ProfileService) DeleteProfileImage(c *gin.Context) {
 	}
 
 	u.ProfileImage = nil
-	if err := s.UserRepo.UpdateUser(&u); err != nil {
+	if err := s.UserRepo.UpdateUser(u); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
 		return
 	}
