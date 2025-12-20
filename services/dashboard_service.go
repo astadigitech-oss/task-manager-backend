@@ -3,6 +3,7 @@ package services
 import (
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"time"
 )
 
 type DashboardService struct {
@@ -14,5 +15,19 @@ func NewDashboardService(repo repositories.TaskRepository) *DashboardService {
 }
 
 func (s *DashboardService) GetAllTasksForUser(userID uint) ([]models.Task, error) {
-	return s.repo.GetAllTasksByUserID(userID)
+	tasks, err := s.repo.GetAllTasksByUserID(userID)
+	if err != nil {
+		return nil, err
+	}
+	var filteredTasks []models.Task
+	now := time.Now()
+	threeDaysFromNow := now.AddDate(0, 0, 3)
+
+	for _, task := range tasks {
+		if task.Status != "Done" && task.DueDate.Before(threeDaysFromNow) || task.DueDate.Equal(now) {
+			filteredTasks = append(filteredTasks, task)
+		}
+	}
+
+	return filteredTasks, nil
 }

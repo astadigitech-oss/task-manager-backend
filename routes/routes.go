@@ -32,6 +32,7 @@ func SetupRoutes(r *gin.Engine) {
 	userService := services.NewUserService(userRepo)
 	webSocketService := services.NewWebSocketService(userRepo, workspaceRepo, projectRepo, taskRepo)
 	dashboardService := services.NewDashboardService(taskRepo)
+	profileService := services.NewProfileService(userRepo)
 
 	//controllers
 	taskImageController := controllers.NewTaskImageController(taskImageService)
@@ -42,6 +43,7 @@ func SetupRoutes(r *gin.Engine) {
 	userController := controllers.NewUserController(userService)
 	webSocketController := controllers.NewWebSocketController(authService, webSocketService, userService)
 	dashboardController := controllers.NewDashboardController(dashboardService)
+	profileController := controllers.NewProfileController(profileService)
 
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
@@ -67,6 +69,10 @@ func SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 	api.Use(authMiddleware)
 	{
+		//Profile
+		api.PUT("/profile", profileController.UpdateProfile)
+		api.DELETE("/profile/image", profileController.DeleteProfileImage)
+
 		// Dashboard
 		api.GET("/dashboard", dashboardController.GetUserDashboard)
 

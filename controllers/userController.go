@@ -59,13 +59,14 @@ func (uc *UserController) GetAllUsers(c *gin.Context) {
 	users := make([]gin.H, 0)
 	for _, user := range result.Users {
 		userData := gin.H{
-			"id":         user.ID,
-			"name":       user.Name,
-			"email":      user.Email,
-			"role":       user.Role,
-			"is_online":  user.IsOnline,
-			"created_at": user.CreatedAt.Format("2006-01-02 15:04:05"),
-			"updated_at": user.UpdatedAt.Format("2006-01-02 15:04:05"),
+			"id":            user.ID,
+			"name":          user.Name,
+			"email":         user.Email,
+			"role":          user.Role,
+			"profile_image": user.ProfileImage,
+			"is_online":     user.IsOnline,
+			"created_at":    user.CreatedAt.Format("2006-01-02 15:04:05"),
+			"updated_at":    user.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 
 		// Add last_seen if available
@@ -128,12 +129,14 @@ func (uc *UserController) GetUserByID(c *gin.Context) {
 	}
 
 	userData := gin.H{
-		"id":         user.ID,
-		"name":       user.Name,
-		"email":      user.Email,
-		"role":       user.Role,
-		"created_at": user.CreatedAt.Format("2006-01-02 15:04:05"),
-		"updated_at": user.UpdatedAt.Format("2006-01-02 15:04:05"),
+		"id":            user.ID,
+		"name":          user.Name,
+		"email":         user.Email,
+		"role":          user.Role,
+		"profile_image": user.ProfileImage,
+		"is_online":     user.IsOnline,
+		"created_at":    user.CreatedAt.Format("2006-01-02 15:04:05"),
+		"updated_at":    user.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	if user.Position != nil && *user.Position != "" {

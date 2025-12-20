@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetByEmail(email string) (*models.User, error)
 	Create(user *models.User) error
 	GetAllUsers() ([]models.User, error)
+	UpdateUser(user *models.User) error
 	GetAllUsersPaginated(page, limit int) ([]models.User, int64, error)
 	GetAllUsersWithFilters(filters UserFilters) ([]models.User, int64, error)
 	GetUserByID(userID uint) (*models.User, error)
@@ -133,6 +134,10 @@ func (r *userRepository) GetUserByID(userID uint) (*models.User, error) {
 		Where("id = ? AND deleted_at IS NULL", userID).
 		First(&user).Error
 	return &user, err
+}
+
+func (r *userRepository) UpdateUser(user *models.User) error {
+	return config.DB.Save(user).Error
 }
 
 func (r *userRepository) SearchUsers(queryStr string) ([]models.User, error) {
