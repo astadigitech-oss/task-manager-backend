@@ -18,6 +18,7 @@ type TaskRepository interface {
 	DeleteTask(taskID uint) error // Hard delete
 	AddMember(tu *models.TaskUser) error
 	GetMembers(taskID uint) ([]models.TaskUser, error)
+	DeleteMember(taskID uint, userID uint) error
 	GetUserByID(userID uint) (*models.User, error)
 	IsProjectInWorkspace(projectID uint, workspaceID uint) (bool, error)
 	IsUserMember(taskID uint, userID uint) (bool, error)
@@ -146,6 +147,10 @@ func (r *taskRepository) GetMembers(taskID uint) ([]models.TaskUser, error) {
 		Where("task_id = ?", taskID).
 		Find(&members).Error
 	return members, err
+}
+
+func (r *taskRepository) DeleteMember(taskID uint, userID uint) error {
+	return config.DB.Where("task_id = ? AND user_id = ?", taskID, userID).Delete(&models.TaskUser{}).Error
 }
 
 func (r *taskRepository) GetUserByID(userID uint) (*models.User, error) {

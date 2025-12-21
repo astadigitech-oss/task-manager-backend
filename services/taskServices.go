@@ -16,8 +16,9 @@ type TaskService interface {
 	UpdateTask(taskID uint, updates map[string]interface{}, workspaceID uint, user *models.User) error
 	SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error
 	DeleteTask(taskID uint, workspaceID uint, user *models.User) error
-	AddMember(taskID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error
-	GetMembers(taskID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error)
+	AddMember(taskID uint, projectID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error
+	GetMembers(taskID uint, projectID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error)
+	DeleteMember(taskID uint, projectID uint, workspaceID uint, userID uint, currentUser *models.User) error
 }
 type taskService struct {
 	repo repositories.TaskRepository
@@ -168,28 +169,18 @@ func (s *taskService) DeleteTask(taskID uint, workspaceID uint, user *models.Use
 	return s.repo.DeleteTask(taskID)
 }
 
-func (s *taskService) AddMember(taskID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error {
+func (s *taskService) AddMember(taskID uint, projectID uint, workspaceID uint, userID uint, role string, currentUser *models.User) error {
 	task, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return errors.New("task tidak ditemukan")
 	}
 
-	isProjectMember, err := s.repo.IsUserInProject(task.ProjectID, currentUser.ID)
-	if err != nil || !isProjectMember {
-		return errors.New("hanya member project yang boleh menambah member task")
+	if task.Project.WorkspaceID != workspaceID {
+		return errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	isTargetUserInProject, err := s.repo.IsUserInProject(task.ProjectID, userID)
-	if err != nil || !isTargetUserInProject {
-		return errors.New("user harus menjadi member project terlebih dahulu")
-	}
-
-	isMember, err := s.repo.IsUserMember(taskID, userID)
-	if err != nil {
-		return errors.New("gagal memvalidasi member")
-	}
-	if isMember {
-		return errors.New("user sudah menjadi member di task ini")
+	if task.ProjectID != projectID {
+		return errors.New("task tidak ditemukan di project ini")
 	}
 
 	member := &models.TaskUser{
@@ -201,19 +192,44 @@ func (s *taskService) AddMember(taskID uint, workspaceID uint, userID uint, role
 	return s.repo.AddMember(member)
 }
 
-func (s *taskService) GetMembers(taskID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error) {
+func (s *taskService) GetMembers(taskID uint, projectID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error) {
 	task, err := s.repo.GetByID(taskID)
 	if err != nil {
 		return nil, errors.New("task tidak ditemukan")
 	}
 
-	isTaskMember, _ := s.repo.IsUserMember(taskID, user.ID)
-	isProjectMember, _ := s.repo.IsUserInProject(task.ProjectID, user.ID)
-
-	if !isTaskMember && !isProjectMember {
-		return nil, errors.New("akses ditolak untuk melihat members task")
+	if task.Project.WorkspaceID != workspaceID {
+		return nil, errors.New("task tidak ditemukan di workspace ini")
 	}
 
+	if task.ProjectID != projectID {
+		return nil, errors.New("task tidak ditemukan di project ini")
+	}
+
+	if user.Role == "admin" {
+		return s.repo.GetMembers(taskID)
+	}
+
+	if user.Role != "admin" {
+		isTaskMember, err := s.repo.IsUserMember(taskID, user.ID)
+		if err != nil {
+			return nil, errors.New("gagal memvalidasi member task")
+		}
+		if !isTaskMember {
+			return nil, errors.New("anda bukan member dari task ini")
+		}
+
+		isProjectMember, err := s.repo.IsUserInProject(task.ProjectID, user.ID)
+		if err != nil || !isProjectMember {
+			return nil, errors.New("hanya member project yang boleh melihat members task")
+		}
+
+		isWorkspaceMember, err := s.repo.IsProjectInWorkspace(task.ProjectID, workspaceID)
+		if err != nil || !isWorkspaceMember {
+			return nil, errors.New("task tidak ditemukan di workspace ini")
+		}
+
+	}
 	return s.repo.GetMembers(taskID)
 }
 
@@ -231,4 +247,22 @@ func (s *taskService) isProjectAdmin(projectID uint, userID uint) (bool, error) 
 	}
 
 	return projectUser.RoleInProject == "admin", nil
+}
+
+func (s *taskService) DeleteMember(taskID uint, projectID uint, workspaceID uint, userID uint, currentUser *models.User) error {
+	task, err := s.repo.GetByID(taskID)
+	if err != nil {
+		return errors.New("task tidak ditemukan")
+	}
+
+	if task.Project.WorkspaceID != workspaceID {
+		return errors.New("task tidak ditemukan di workspace ini")
+	}
+
+	if task.ProjectID != projectID {
+		return errors.New("task tidak ditemukan di project ini")
+	}
+
+	return s.repo.DeleteMember(taskID, userID)
+
 }

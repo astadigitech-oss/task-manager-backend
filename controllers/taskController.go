@@ -309,6 +309,13 @@ func (tc *TaskController) AddMember(c *gin.Context) {
 		return
 	}
 
+	ProjectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		utils.Error(0, "parse_project_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
 	var input struct {
 		UserID uint   `json:"user_id"`
 		Role   string `json:"role_in_task"`
@@ -322,7 +329,7 @@ func (tc *TaskController) AddMember(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
-	if err := tc.Service.AddMember(taskID, workspaceID, input.UserID, input.Role, currentUser); err != nil {
+	if err := tc.Service.AddMember(taskID, ProjectID, workspaceID, input.UserID, input.Role, currentUser); err != nil {
 		utils.Error(currentUser.ID, "add_member_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
 		return
@@ -350,6 +357,13 @@ func (tc *TaskController) GetMembers(c *gin.Context) {
 		return
 	}
 
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		utils.Error(0, "parse_project_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
 	taskID, err := ParseUintParam(c, "task_id")
 	if err != nil {
 		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
@@ -359,7 +373,7 @@ func (tc *TaskController) GetMembers(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
-	members, err := tc.Service.GetMembers(taskID, workspaceID, currentUser)
+	members, err := tc.Service.GetMembers(taskID, projectID, workspaceID, currentUser)
 	if err != nil {
 		utils.Error(currentUser.ID, "get_members_task", "task", taskID, err.Error(), "")
 		c.JSON(403, gin.H{"error": err.Error()})
@@ -372,5 +386,55 @@ func (tc *TaskController) GetMembers(c *gin.Context) {
 		Code:    200,
 		Message: "Members task berhasil diambil",
 		Data:    memberResponses,
+	})
+}
+
+func (tc *TaskController) DeleteMember(c *gin.Context) {
+	workspaceID, err := ParseUintParam(c, "workspace_id")
+	if err != nil {
+		utils.Error(0, "parse_workspace_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	projectID, err := ParseUintParam(c, "project_id")
+	if err != nil {
+		utils.Error(0, "parse_project_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	taskID, err := ParseUintParam(c, "task_id")
+	if err != nil {
+		utils.Error(0, "parse_task_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	currentUser := GetCurrentUser(c)
+
+	userID, err := ParseUintParam(c, "user_id")
+	if err != nil {
+		utils.Error(0, "parse_user_id", "task", 0, err.Error(), "")
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := tc.Service.DeleteMember(taskID, projectID, workspaceID, userID, currentUser); err != nil {
+		utils.Error(currentUser.ID, "delete_member_task", "task", taskID, err.Error(), "")
+		c.JSON(403, gin.H{"error": err.Error()})
+		return
+	}
+
+	utils.ActivityLog(currentUser.ID, "DELETE_MEMBER_TASK", "task", taskID, gin.H{"deleted_user_id": userID}, nil)
+
+	c.JSON(200, APIResponse{
+		Success: true,
+		Code:    200,
+		Message: "Member berhasil dihapus dari task",
+		Data: gin.H{
+			"task_id": taskID,
+			"user_id": userID,
+		},
 	})
 }

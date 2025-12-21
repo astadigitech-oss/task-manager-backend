@@ -139,17 +139,18 @@ func SetupRoutes(r *gin.Engine) {
 		tasks := api.Group("/workspaces/:workspace_id/projects/:project_id/tasks")
 		{
 			tasks.GET("", taskController.ListTasks)
-			tasks.POST("", adminMiddleware, taskController.CreateTask) // Member project
+			tasks.POST("", adminMiddleware, taskController.CreateTask)
 
 			task := tasks.Group("/:task_id")
 			{
 				task.GET("", taskController.DetailTask)
-				task.PUT("", taskController.UpdateTask)                               // Member project/task
-				task.DELETE("", adminMiddleware, taskController.SoftDeleteTask)       // Creator atau member project
-				task.DELETE("/permanent", adminMiddleware, taskController.DeleteTask) // Creator atau member project
+				task.PUT("", taskController.UpdateTask)
+				task.DELETE("", adminMiddleware, taskController.SoftDeleteTask)
+				task.DELETE("/permanent", adminMiddleware, taskController.DeleteTask)
 
-				task.GET("/members", adminMiddleware, taskController.GetMembers)
-				task.POST("/members", adminMiddleware, taskController.AddMember) // Member project bisa add member task
+				task.GET("/members", taskController.GetMembers)
+				task.POST("/members", adminMiddleware, taskController.AddMember)
+				task.DELETE("/members/:user_id", adminMiddleware, taskController.DeleteMember)
 
 				// Task Images
 				images := task.Group("/images")
