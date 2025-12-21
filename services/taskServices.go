@@ -40,10 +40,10 @@ func (s *taskService) CreateTask(task *models.Task, workspaceID uint, user *mode
 	}
 
 	if task.Status == "" {
-		task.Status = "todo"
+		task.Status = "On board"
 	}
 	if task.Priority == "" {
-		task.Priority = "medium"
+		task.Priority = "Normal"
 	}
 
 	return s.repo.CreateTask(task)
@@ -64,15 +64,7 @@ func (s *taskService) GetAllTasks(projectID uint, workspaceID uint, user *models
 		return nil, errors.New("hanya member project yang boleh lihat tasks")
 	}
 
-	isProjectAdmin, err := s.isProjectAdmin(projectID, user.ID)
-	if err != nil {
-		return nil, err
-	}
-	if isProjectAdmin {
-		return s.repo.GetAllTasks(projectID)
-	} else {
-		return s.repo.GetTasksByUserID(projectID, user.ID)
-	}
+	return s.repo.GetTasksByUserID(projectID, user.ID)
 }
 
 func (s *taskService) GetByID(taskID uint, workspaceID uint, user *models.User) (*models.Task, error) {
@@ -181,6 +173,14 @@ func (s *taskService) AddMember(taskID uint, projectID uint, workspaceID uint, u
 
 	if task.ProjectID != projectID {
 		return errors.New("task tidak ditemukan di project ini")
+	}
+
+	isMember, err := s.repo.IsUserMember(taskID, userID)
+	if err != nil {
+		return errors.New("gagal memvalidasi member")
+	}
+	if isMember {
+		return errors.New("user sudah menjadi member di task ini")
 	}
 
 	member := &models.TaskUser{
