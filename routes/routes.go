@@ -105,6 +105,7 @@ func SetupRoutes(r *gin.Engine) {
 		users := api.Group("/users")
 		{
 			users.GET("", userController.GetAllUsers)
+			users.DELETE("/delete/:user_id", adminMiddleware, userController.DeleteUser)
 		}
 
 		// Project

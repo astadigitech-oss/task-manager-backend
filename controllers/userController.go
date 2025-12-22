@@ -380,3 +380,24 @@ func (uc *UserController) GetOnlineWorkspaceMembers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
+
+func (uc *UserController) DeleteUser(c *gin.Context) {
+	userID, err := ParseUintParam(c, "user_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	currentUser := GetCurrentUser(c)
+
+	if err := uc.Service.DeleteUser(userID, currentUser); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	utils.ActivityLog(currentUser.ID, "Delete_user", "User", userID, userID, nil)
+
+	c.JSON(http.StatusOK, APIResponse{
+		Success: true,
+		Code:    http.StatusOK,
+		Message: fmt.Sprintf("User %d berhasil dihapus", userID),
+	})
+}

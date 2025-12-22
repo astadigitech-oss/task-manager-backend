@@ -31,6 +31,28 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 
 	var projectList []gin.H
 	for _, project := range projects {
+		members := make([]gin.H, 0)
+		for _, member := range project.Members {
+			members = append(members, gin.H{
+				"id":            member.User.ID,
+				"name":          member.User.Name,
+				"profile_image": member.User.ProfileImage,
+			})
+		}
+
+		var completedTasks int
+		for _, task := range project.Tasks {
+			if task.Status == "done" {
+				completedTasks++
+			}
+		}
+
+		var progress float64
+		if len(project.Tasks) > 0 {
+			progress = (float64(completedTasks) / float64(len(project.Tasks))) * 100
+		} else {
+			progress = 0
+		}
 		projectList = append(projectList, gin.H{
 			"id":           project.ID,
 			"name":         project.Name,
@@ -38,7 +60,8 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 			"workspace_id": project.WorkspaceID,
 			"member_count": len(project.Members),
 			"task_count":   len(project.Tasks),
-			"image_count":  len(project.Images),
+			"members":      members,
+			"progress":     progress,
 		})
 	}
 
@@ -361,10 +384,11 @@ func (pc *ProjectController) GetMembers(c *gin.Context) {
 	memberProject := make([]gin.H, 0)
 	for _, member := range members {
 		memberProject = append(memberProject, gin.H{
-			"id":         member.User.ID,
-			"name":       member.User.Name,
-			"user_email": member.User.Email,
-			"role":       member.User.Role,
+			"id":          member.User.ID,
+			"name":        member.User.Name,
+			"user_email":  member.User.Email,
+			"role":        member.User.Role,
+			"profile_img": member.User.ProfileImage,
 		})
 	}
 

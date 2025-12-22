@@ -21,6 +21,7 @@ type UserRepository interface {
 	GetOnlineUsers() ([]models.User, error)
 	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
 	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
+	DeleteUser(userID uint) error
 }
 
 type userRepository struct{}
@@ -212,4 +213,8 @@ func (r *userRepository) IsUserMemberOfWorkspace(userID uint, workspaceID uint) 
 		return false, err
 	}
 	return true, nil
+}
+
+func (r *userRepository) DeleteUser(userID uint) error {
+	return config.DB.Delete(&models.User{}, userID).Error
 }

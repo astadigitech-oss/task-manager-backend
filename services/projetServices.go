@@ -270,10 +270,10 @@ func (s *projectService) RemoveMember(projectID uint, userID uint, currentUser *
 		if userID == currentUser.ID {
 			return errors.New("tidak bisa menghapus diri sendiri, minta admin untuk melakukannya")
 		}
+	}
 
-		if targetMember.RoleInProject == "admin" {
-			return errors.New("tidak bisa menghapus admin project lain")
-		}
+	if targetMember.RoleInProject == "admin" {
+		return errors.New("tidak bisa menghapus admin project lain")
 	}
 
 	return s.repo.RemoveMember(projectID, userID)

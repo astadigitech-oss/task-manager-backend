@@ -35,6 +35,11 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 		u.Name = name
 	}
 
+	possition := c.PostForm("position")
+	if possition != "" {
+		u.Position = &possition
+	}
+
 	if u.ProfileImage != nil {
 		if err := os.Remove(*u.ProfileImage); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image file"})

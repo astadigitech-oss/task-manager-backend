@@ -11,6 +11,7 @@ type Workspace struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	CreatedBy   uint            `json:"created_by"`
+	Color       string          `json:"color"`
 	CreatedAt   time.Time       `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time       `gorm:"autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt  `gorm:"index" json:"deleted_at,omitempty"`

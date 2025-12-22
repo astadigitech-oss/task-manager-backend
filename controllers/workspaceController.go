@@ -55,8 +55,9 @@ func (wc *WorkspaceController) ListWorkspaces(c *gin.Context) {
 	workspaceList := make([]gin.H, 0)
 	for _, ws := range workspaces {
 		workspaceList = append(workspaceList, gin.H{
-			"id":   ws.ID,
-			"name": ws.Name,
+			"id":    ws.ID,
+			"name":  ws.Name,
+			"color": ws.Color,
 		})
 	}
 
@@ -72,6 +73,7 @@ func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
 	var input struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		Color       string `json:"color"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -83,6 +85,7 @@ func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
 	workspace := models.Workspace{
 		Name:        input.Name,
 		Description: input.Description,
+		Color:       input.Color,
 	}
 
 	if err := wc.Service.CreateWorkspace(&workspace, currentUser); err != nil {
@@ -97,8 +100,9 @@ func (wc *WorkspaceController) CreateWorkspace(c *gin.Context) {
 		Code:    201,
 		Message: "Workspace berhasil di buat",
 		Data: gin.H{
-			"id":   workspace.ID,
-			"name": workspace.Name,
+			"id":    workspace.ID,
+			"name":  workspace.Name,
+			"color": workspace.Color,
 		},
 	})
 }
@@ -127,6 +131,7 @@ func (wc *WorkspaceController) DetailWorkspace(c *gin.Context) {
 			"name":        ws.Name,
 			"description": ws.Description,
 			"createdBy":   ws.CreatedBy,
+			"color":       ws.Color,
 		},
 	})
 }
@@ -141,6 +146,7 @@ func (wc *WorkspaceController) UpdateWorkspace(c *gin.Context) {
 	var input struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
+		Color       string `json:"color"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -159,6 +165,7 @@ func (wc *WorkspaceController) UpdateWorkspace(c *gin.Context) {
 		ID:          workspaceID,
 		Name:        input.Name,
 		Description: input.Description,
+		Color:       input.Color,
 	}
 
 	if err := wc.Service.UpdateWorkspace(&workspace, currentUser); err != nil {
@@ -184,6 +191,7 @@ func (wc *WorkspaceController) UpdateWorkspace(c *gin.Context) {
 			"id":          updatedWorkspace.ID,
 			"name":        updatedWorkspace.Name,
 			"description": updatedWorkspace.Description,
+			"color":       updatedWorkspace.Color,
 		},
 	})
 }

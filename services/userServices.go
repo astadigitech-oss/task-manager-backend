@@ -16,6 +16,7 @@ type UserService interface {
 	GetOnlineUsers() ([]models.User, error)
 	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
 	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
+	DeleteUser(userID uint, currentUser *models.User) error
 }
 
 type userService struct {
@@ -157,4 +158,8 @@ func (s *userService) GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User
 
 func (s *userService) IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error) {
 	return s.repo.IsUserMemberOfWorkspace(userID, workspaceID)
+}
+
+func (s *userService) DeleteUser(userID uint, currentUser *models.User) error {
+	return s.repo.DeleteUser(userID)
 }
