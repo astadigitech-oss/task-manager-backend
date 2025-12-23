@@ -1,6 +1,7 @@
 package services
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,33 +36,34 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 		u.Name = name
 	}
 
-	possition := c.PostForm("position")
-	if possition != "" {
-		u.Position = &possition
-	}
-
-	if u.ProfileImage != nil {
-		if err := os.Remove(*u.ProfileImage); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image file"})
-			return
-		}
-	}
-
 	file, err := c.FormFile("profile_image")
 	if err == nil {
-		filename := filepath.Base(file.Filename)
-		path := "uploads/profiles/" + filename
+		oldProfileImage := u.ProfileImage
 
-		if err := os.MkdirAll("uploads/profiles", os.ModePerm); err != nil {
+		uploadDir, _ := filepath.Abs("uploads/profiles")
+		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
 			return
 		}
 
-		if err := c.SaveUploadedFile(file, path); err != nil {
+		filename := filepath.Base(file.Filename)
+		newPath := filepath.Join(uploadDir, filename)
+
+		if err := c.SaveUploadedFile(file, newPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 			return
 		}
-		u.ProfileImage = &path
+		u.ProfileImage = &newPath
+
+		if oldProfileImage != nil && *oldProfileImage != "" {
+			go func(oldPath string) {
+				if err := os.Remove(oldPath); err != nil {
+					log.Printf("[Cleanup] Failed to delete %s: %s", oldPath, err.Error())
+				} else {
+					log.Printf("[Cleanup] Deleted %s", oldPath)
+				}
+			}(*oldProfileImage)
+		}
 	}
 
 	if err := s.UserRepo.UpdateUser(u); err != nil {

@@ -131,6 +131,16 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 		return
 	}
 
+	members := make([]gin.H, 0)
+	for _, member := range project.Members {
+		members = append(members, gin.H{
+			"id":            member.User.ID,
+			"name":          member.User.Name,
+			"profile_image": member.User.ProfileImage,
+			"position":      member.User.Position,
+		})
+	}
+
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
@@ -141,6 +151,7 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 			"description":  project.Description,
 			"workspace_id": project.WorkspaceID,
 			"created_by":   project.CreatedBy,
+			"member":       members,
 		},
 	})
 }

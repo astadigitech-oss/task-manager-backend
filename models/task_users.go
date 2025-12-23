@@ -8,7 +8,7 @@ type TaskUser struct {
 	UserID     uint      `json:"user_id"`
 	RoleInTask string    `json:"role_in_task"`
 	AssignedAt time.Time `json:"assigned_at"`
-	User       User      `gorm:"foreignKey:UserID" json:"user"`
+	User       User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE" json:"user"`
 	Task       Task      `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"task"`
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `gorm:"autoUpdateTime"`

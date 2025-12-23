@@ -79,18 +79,14 @@ func (s *projectService) GetByID(projectID uint, user *models.User) (*models.Pro
 		return nil, errors.New("project tidak ditemukan")
 	}
 
-	if user.Role != "Admin" {
+	if user.Role != "admin" {
 		isProjectMember, err := s.repo.IsUserMember(projectID, user.ID)
 		if err != nil {
-			return nil, errors.New("harus menjadi member project atau workspace untuk mengakses project ini")
-		}
-		isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, user.ID)
-		if err != nil || !isWorkspaceMember {
-			return nil, errors.New("tidak memiliki akses ke workspace project ini")
+			return nil, errors.New("gagal memeriksa keanggotaan project")
 		}
 
-		if !isProjectMember && !isWorkspaceMember {
-			return nil, errors.New("akses ditolak untuk project ini")
+		if !isProjectMember {
+			return nil, errors.New("anda tidak memiliki akses ke project ini")
 		}
 	}
 
@@ -103,12 +99,30 @@ func (s *projectService) UpdateProject(project *models.Project, user *models.Use
 		return errors.New("project tidak ditemukan")
 	}
 
-	isWorkspaceMember, err := s.workspaceRepo.IsUserMember(existingProject.WorkspaceID, user.ID)
-	if err != nil || !isWorkspaceMember {
-		return errors.New("hanya member workspace yang boleh update project")
+	if user.Role != "admin" {
+		member, err := s.repo.GetProjectMember(existingProject.ID, user.ID)
+		if err != nil {
+			return errors.New("anda bukan member dari project ini")
+		}
+
+		if member.RoleInProject != "admin" {
+			return errors.New("hanya admin project yang dapat mengupdate project")
+		}
 	}
 
-	return s.repo.UpdateProject(project)
+	isProjectMember, err := s.repo.IsUserMember(project.ID, user.ID)
+	if err != nil {
+		return errors.New("gagal memeriksa keanggotaan project")
+	}
+
+	if !isProjectMember {
+		return errors.New("anda tidak memiliki akses ke project ini")
+	}
+
+	existingProject.Name = project.Name
+	existingProject.Description = project.Description
+
+	return s.repo.UpdateProject(existingProject)
 }
 
 func (s *projectService) SoftDeleteProject(projectID uint, user *models.User) error {
@@ -117,9 +131,15 @@ func (s *projectService) SoftDeleteProject(projectID uint, user *models.User) er
 		return errors.New("project tidak ditemukan")
 	}
 
-	isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, user.ID)
-	if err != nil || !isWorkspaceMember {
-		return errors.New("hanya member workspace yang boleh soft delete project")
+	if user.Role != "admin" {
+		member, err := s.repo.GetProjectMember(project.ID, user.ID)
+		if err != nil {
+			return errors.New("anda bukan member dari project ini")
+		}
+
+		if member.RoleInProject != "admin" {
+			return errors.New("hanya admin project yang dapat menghapus project")
+		}
 	}
 
 	return s.repo.SoftDeleteProject(projectID)
@@ -132,9 +152,15 @@ func (s *projectService) DeleteProject(projectID uint, user *models.User) error 
 		return errors.New("project tidak ditemukan")
 	}
 
-	isWorkspaceMember, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, user.ID)
-	if err != nil || !isWorkspaceMember {
-		return errors.New("hanya member workspace yang boleh hard delete project")
+	if user.Role != "admin" {
+		member, err := s.repo.GetProjectMember(project.ID, user.ID)
+		if err != nil {
+			return errors.New("anda bukan member dari project ini")
+		}
+
+		if member.RoleInProject != "admin" {
+			return errors.New("hanya admin project yang dapat menghapus project")
+		}
 	}
 
 	return s.repo.DeleteProject(projectID)
