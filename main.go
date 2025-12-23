@@ -41,8 +41,19 @@ func main() {
 
 	config.ConnectDB()
 
+	sqlDB, err := config.DB.DB()
+	if err != nil {
+		log.Fatal("Failed to get database instance")
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+
+	sqlDB.SetMaxOpenConns(100)
+
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	// Auto-migrate semua model
-	err := config.DB.AutoMigrate(
+	err = config.DB.AutoMigrate(
 		&models.User{},
 		&models.Workspace{},
 		&models.Project{},

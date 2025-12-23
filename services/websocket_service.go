@@ -78,8 +78,7 @@ func (s *webSocketService) RunHub() {
 					select {
 					case client.Send <- message:
 					default:
-						close(client.Send)
-						delete(s.hub.Clients[client.WorkspaceID], client)
+						client.Hub.Unregister <- client
 					}
 				}
 			}
@@ -161,8 +160,7 @@ func (s *webSocketService) broadcastStatus(workspaceID, userID uint, status stri
 			select {
 			case client.Send <- message:
 			default:
-				close(client.Send)
-				delete(s.hub.Clients[workspaceID], client)
+				client.Hub.Unregister <- client
 			}
 		}
 	}

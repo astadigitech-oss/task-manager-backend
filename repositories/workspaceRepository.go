@@ -75,6 +75,7 @@ func (r *workspaceRepository) UpdateWorkspace(workspace *models.Workspace) error
 		Updates(map[string]interface{}{
 			"name":        workspace.Name,
 			"description": workspace.Description,
+			"color":       workspace.Color,
 			"updated_at":  time.Now(),
 		}).Error
 }
