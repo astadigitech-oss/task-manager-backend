@@ -4,6 +4,8 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type UserRepository interface {
@@ -216,5 +218,27 @@ func (r *userRepository) IsUserMemberOfWorkspace(userID uint, workspaceID uint) 
 }
 
 func (r *userRepository) DeleteUser(userID uint) error {
-	return config.DB.Delete(&models.User{}, userID).Error
+	return config.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. Delete from workspace_users
+		if err := tx.Where("user_id = ?", userID).Delete(&models.WorkspaceUser{}).Error; err != nil {
+			return err
+		}
+
+		// 2. Delete from project_users
+		if err := tx.Where("user_id = ?", userID).Delete(&models.ProjectUser{}).Error; err != nil {
+			return err
+		}
+
+		// 3. Delete from task_users
+		if err := tx.Where("user_id = ?", userID).Delete(&models.TaskUser{}).Error; err != nil {
+			return err
+		}
+
+		// 4. Finally, hard delete the user itself.
+		if err := tx.Unscoped().Where("id = ?", userID).Delete(&models.User{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
