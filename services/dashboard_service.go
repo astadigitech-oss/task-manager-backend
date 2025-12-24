@@ -31,3 +31,21 @@ func (s *DashboardService) GetAllTasksForUser(userID uint) ([]models.Task, error
 
 	return filteredTasks, nil
 }
+
+func (s *DashboardService) GetAllTaskForAdmin() ([]models.Task, error) {
+	tasks, err := s.repo.GetAllTasksForAdmin()
+	if err != nil {
+		return nil, err
+	}
+
+	var filteredTasksAdmin []models.Task
+	now := time.Now()
+	threeDaysFromNow := now.AddDate(0, 0, 3)
+
+	for _, task := range tasks {
+		if task.Status != "Done" && task.DueDate.Before(threeDaysFromNow) || task.DueDate.Equal(now) {
+			filteredTasksAdmin = append(filteredTasksAdmin, task)
+		}
+	}
+	return filteredTasksAdmin, nil
+}

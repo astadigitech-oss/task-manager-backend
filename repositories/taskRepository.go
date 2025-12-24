@@ -25,6 +25,7 @@ type TaskRepository interface {
 	IsUserInProject(projectID uint, userID uint) (bool, error)
 	GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error)
 	GetAllTasksByUserID(userID uint) ([]models.Task, error)
+	GetAllTasksForAdmin() ([]models.Task, error)
 }
 
 type taskRepository struct{}
@@ -57,6 +58,19 @@ func (r *taskRepository) GetAllTasksByUserID(userID uint) ([]models.Task, error)
 		Joins("JOIN projects ON projects.id = tasks.project_id").
 		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
 		Where("task_users.user_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", userID).
+		Preload("Members.User").
+		Preload("Images").
+		Preload("Project").
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetAllTasksForAdmin() ([]models.Task, error) {
+	var tasks []models.Task
+	err := config.DB.
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL").
 		Preload("Members.User").
 		Preload("Images").
 		Preload("Project").

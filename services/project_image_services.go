@@ -139,19 +139,9 @@ func (s *projectImageService) DeleteProjectImage(imageID uint, userID uint) erro
 		return errors.New("image tidak ditemukan")
 	}
 
-	project, err := s.projectRepo.GetByID(image.ProjectID)
+	_, err = s.projectRepo.GetByID(image.ProjectID)
 	if err != nil {
 		return errors.New("project tidak ditemukan atau workspace sudah dihapus")
-	}
-
-	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(project.WorkspaceID, userID)
-	if err != nil || !hasWorkspaceAccess {
-		return errors.New("tidak memiliki akses ke workspace project ini")
-	}
-
-	isProjectMember, err := s.projectRepo.IsUserMember(image.ProjectID, userID)
-	if err != nil || !isProjectMember {
-		return errors.New("hanya member project yang boleh menghapus image")
 	}
 
 	filePath := "." + image.URL // Karena URL relative

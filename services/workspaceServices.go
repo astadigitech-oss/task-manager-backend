@@ -90,7 +90,7 @@ func (s *workspaceService) UpdateWorkspace(workspace *models.Workspace, user *mo
 		return errors.New("workspace tidak ditemukan")
 	}
 
-	if existingWorkspace.CreatedBy != user.ID {
+	if user.Role != "admin" && existingWorkspace.CreatedBy != user.ID {
 		return errors.New("hanya creator workspace yang boleh mengupdate")
 	}
 
@@ -103,7 +103,7 @@ func (s *workspaceService) SoftDeleteWorkspace(workspaceID uint, user *models.Us
 		return errors.New("workspace tidak ditemukan")
 	}
 
-	if workspace.CreatedBy != user.ID {
+	if user.Role != "admin" && workspace.CreatedBy != user.ID {
 		return errors.New("hanya creator workspace yang boleh soft delete")
 	}
 
@@ -133,7 +133,7 @@ func (s *workspaceService) DeleteWorkspace(workspaceID uint, user *models.User) 
 		return errors.New("workspace tidak ditemukan")
 	}
 
-	if workspace.CreatedBy != user.ID {
+	if user.Role != "admin" && workspace.CreatedBy != user.ID {
 		return errors.New("hanya creator workspace yang boleh hard delete")
 	}
 
@@ -178,6 +178,13 @@ func (s *workspaceService) GetMembers(workspaceID uint, user *models.User) ([]mo
 	_, err := s.repo.GetByID(workspaceID)
 	if err != nil {
 		return nil, errors.New("workspace tidak ditemukan")
+	}
+
+	if user.Role != "admin" {
+		isMember, err := s.repo.IsUserMember(workspaceID, user.ID)
+		if err != nil || !isMember {
+			return nil, errors.New("anda bukan member")
+		}
 	}
 
 	return s.repo.GetMembers(workspaceID)

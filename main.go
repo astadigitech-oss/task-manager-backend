@@ -45,12 +45,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to get database instance")
 	}
+	defer sqlDB.Close()
 
-	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxIdleConns(5)
 
-	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetMaxOpenConns(20)
 
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxLifetime(30 * time.Hour)
 
 	// Auto-migrate semua model
 	err = config.DB.AutoMigrate(

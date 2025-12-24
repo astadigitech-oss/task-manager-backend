@@ -26,7 +26,7 @@ func SetupRoutes(r *gin.Engine) {
 	//services
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskService := services.NewTaskService(taskRepo)
-	projectService := services.NewProjectService(projectRepo, workspaceRepo)
+	projectService := services.NewProjectService(projectRepo, workspaceRepo, taskRepo)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)
@@ -75,6 +75,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// Dashboard
 		api.GET("/dashboard", dashboardController.GetUserDashboard)
+		api.GET("/dashboard/admin", dashboardController.GetAdminDashboard)
 
 		// Online Users
 		api.GET("/online-users", adminMiddleware, userController.GetOnlineUsers)
