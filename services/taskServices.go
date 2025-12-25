@@ -5,6 +5,7 @@ import (
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -94,38 +95,61 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 		return errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	isPAdmin, err := s.isProjectAdmin(existingTask.ProjectID, user.ID)
-	if err != nil {
-		return errors.New("gagal memvalidasi admin project")
-	}
+	if user.Role != "admin" {
+		if existingTask.Project.WorkspaceID != workspaceID {
+			return errors.New("task tidak ditemukan di workspace ini")
+		}
 
-	if user.Role == "admin" || isPAdmin {
-		return s.repo.UpdateTask(taskID, updates)
-	} else {
-		isMember, err := s.repo.IsUserMember(taskID, user.ID)
+		isPAdmin, err := s.isProjectAdmin(existingTask.ProjectID, user.ID)
 		if err != nil {
-			return errors.New("gagal memvalidasi member task")
+			return errors.New("gagal memvalidasi admin project")
 		}
 
-		if !isMember {
-			return errors.New("anda bukan member dari task ini, tidak bisa mengupdate")
-		}
-
-		allowedUpdates := make(map[string]interface{})
-		for key, value := range updates {
-			if key == "status" || key == "notes" {
-				allowedUpdates[key] = value
-			} else {
-				return errors.New("anda hanya diizinkan untuk mengupdate status dan notes")
+		if !isPAdmin {
+			isMember, err := s.repo.IsUserMember(taskID, user.ID)
+			if err != nil {
+				return errors.New("gagal memvalidasi member task")
 			}
-		}
 
-		if len(allowedUpdates) == 0 {
-			return errors.New("tidak ada field yang diizinkan untuk diupdate")
-		}
+			if !isMember {
+				return errors.New("anda bukan member dari task ini, tidak bisa mengupdate")
+			}
 
-		return s.repo.UpdateTask(taskID, allowedUpdates)
+			allowedUpdates := make(map[string]interface{})
+			for key, value := range updates {
+				if key == "status" || key == "notes" {
+					allowedUpdates[key] = value
+				} else {
+					return errors.New("anda hanya diizinkan untuk mengupdate status dan notes")
+				}
+			}
+
+			if len(allowedUpdates) == 0 {
+				return errors.New("tidak ada field yang diizinkan untuk diupdate")
+			}
+
+			return s.repo.UpdateTask(taskID, allowedUpdates)
+		}
 	}
+
+	if status, ok := updates["status"]; ok {
+		if status == "Done" {
+			now := time.Now()
+			updates["finished_at"] = &now
+
+			if now.After(existingTask.DueDate) {
+				duration := now.Sub(existingTask.DueDate)
+				updates["overdue_duration"] = duration
+			} else {
+				updates["overdue_duration"] = time.Duration(0)
+			}
+		} else if existingTask.Status == "Done" && status != "Done" {
+			updates["finished_at"] = nil
+			updates["overdue_duration"] = time.Duration(0)
+		}
+	}
+
+	return s.repo.UpdateTask(taskID, updates)
 }
 
 func (s *taskService) SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error {

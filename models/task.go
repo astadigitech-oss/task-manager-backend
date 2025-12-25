@@ -7,15 +7,16 @@ import (
 )
 
 type Task struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	ProjectID   uint      `json:"project_id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	Priority    string    `json:"priority"`
-	StartDate   time.Time `json:"start_date"`
-	DueDate     time.Time `json:"due_date"`
-	Notes       *string   `json:"notes"` // Notes yang diisi member, nullable
+	ID              uint          `gorm:"primaryKey" json:"id"`
+	ProjectID       uint          `json:"project_id"`
+	Title           string        `json:"title"`
+	Description     string        `json:"description"`
+	Status          string        `json:"status"`
+	Priority        string        `json:"priority"`
+	StartDate       time.Time     `json:"start_date"`
+	DueDate         time.Time     `json:"due_date"`
+	Notes           *string       `json:"notes"`            // Notes yang diisi member, nullable
+	OverdueDuration time.Duration `json:"overdue_duration"` // Durasi keterlambatan penyelesaian tugas
 
 	Project   Project        `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"project"`
 	Members   []TaskUser     `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"members"`
