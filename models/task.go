@@ -15,6 +15,7 @@ type Task struct {
 	Priority        string        `json:"priority"`
 	StartDate       time.Time     `json:"start_date"`
 	DueDate         time.Time     `json:"due_date"`
+	FinishedAt      *time.Time    `json:"finished_at"`
 	Notes           *string       `json:"notes"`            // Notes yang diisi member, nullable
 	OverdueDuration time.Duration `json:"overdue_duration"` // Durasi keterlambatan penyelesaian tugas
 

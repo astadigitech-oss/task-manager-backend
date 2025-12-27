@@ -1,10 +1,12 @@
 package routes
 
 import (
+	"project-management-backend/config"
 	"project-management-backend/controllers"
 	"project-management-backend/middleware"
 	"project-management-backend/repositories"
 	"project-management-backend/services"
+	"project-management-backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,10 +25,14 @@ func SetupRoutes(r *gin.Engine) {
 	projectImageRepo := repositories.NewProjectImageRepository()
 	workspaceRepo := repositories.NewWorkspaceRepository()
 
+	// Initialize Activity Logger
+	activityLogger := utils.NewActivityLogger(config.DB)
+
 	//services
+	pdfService := services.NewPDFService()                                                                                   // PDF service harus diinisialisasi
+	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskService := services.NewTaskService(taskRepo)
-	projectService := services.NewProjectService(projectRepo, workspaceRepo, taskRepo)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)
@@ -44,6 +50,7 @@ func SetupRoutes(r *gin.Engine) {
 	webSocketController := controllers.NewWebSocketController(authService, webSocketService, userService)
 	dashboardController := controllers.NewDashboardController(dashboardService)
 	profileController := controllers.NewProfileController(profileService)
+	exportController := controllers.NewExportController(projectService)
 
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
@@ -114,6 +121,7 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			projects.GET("", projectController.ListProjects)
 			projects.POST("", adminMiddleware, projectController.CreateProject)
+			projects.GET("/export", exportController.ExportProject) // Tambahkan export route
 
 			project := projects.Group("/:project_id")
 			{

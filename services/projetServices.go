@@ -2,11 +2,15 @@
 package services
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"project-management-backend/utils"
+
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -22,6 +26,7 @@ type ProjectService interface {
 	GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error)
 	RemoveMember(projectID uint, userID uint, currentUser *models.User) error
 	RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error
+	ExportProject(projectID uint, userID uint, filter string) ([]byte, error)
 }
 
 type ProjectMember struct {
@@ -30,16 +35,22 @@ type ProjectMember struct {
 }
 
 type projectService struct {
-	repo          repositories.ProjectRepository
-	workspaceRepo repositories.WorkspaceRepository
-	taskRepo      repositories.TaskRepository
+	repo           repositories.ProjectRepository
+	userRepo       repositories.UserRepository
+	workspaceRepo  repositories.WorkspaceRepository
+	taskRepo       repositories.TaskRepository
+	pdfService     PDFService
+	activityLogger utils.ActivityLogger
 }
 
-func NewProjectService(repo repositories.ProjectRepository, workspaceRepo repositories.WorkspaceRepository, taskRepo repositories.TaskRepository) ProjectService {
+func NewProjectService(repo repositories.ProjectRepository, userRepo repositories.UserRepository, workspaceRepo repositories.WorkspaceRepository, taskRepo repositories.TaskRepository, pdfService PDFService, activityLogger utils.ActivityLogger) ProjectService {
 	return &projectService{
-		repo:          repo,
-		workspaceRepo: workspaceRepo,
-		taskRepo:      taskRepo,
+		repo:           repo,
+		userRepo:       userRepo,
+		workspaceRepo:  workspaceRepo,
+		taskRepo:       taskRepo,
+		pdfService:     pdfService,
+		activityLogger: activityLogger,
 	}
 }
 
@@ -267,4 +278,66 @@ func (s *projectService) RemoveMembers(projectID uint, userIDs []uint, currentUs
 	}
 
 	return s.repo.RemoveMembers(projectID, userIDs)
+}
+
+func (s *projectService) ExportProject(projectID uint, userID uint, filter string) ([]byte, error) {
+	// 1. Fetch project details
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	// 2. Fetch user details (PIC)
+	pic, err := s.userRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PIC details: %w", err)
+	}
+
+	// 3. Fetch tasks based on filter
+	tasks, err := s.taskRepo.GetTasksByProjectIDAndFilter(projectID, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tasks: %w", err)
+	}
+
+	// 4. Create period string
+	now := time.Now()
+	oneWeekAgo := now.AddDate(0, 0, -7)
+	oneWeekLater := now.AddDate(0, 0, 7)
+	period := ""
+	switch filter {
+	case "daily":
+		period = fmt.Sprintf("%s", now.Format("02 Jan 2006"))
+	case "weekly", "last_week_in_progress", "last_week_done":
+		period = fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+	case "monthly":
+		oneMonthAgo := now.AddDate(0, -1, 0)
+		period = fmt.Sprintf("%s - %s", oneMonthAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+	case "next_week_starting", "next_week_due":
+		period = fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
+	default:
+		period = "All Time"
+	}
+
+	// 5. Generate PDF
+	pdf, err := s.pdfService.GenerateProjectReportPDF(project, tasks, *pic, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	// 6. Output PDF to buffer
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
+	}
+
+	// Log activity
+	activity := models.ActivityLog{
+		UserID:    userID,
+		Action:    fmt.Sprintf("User exported project '%s' with filter '%s'", project.Name, filter),
+		TableName: "projects",
+		ItemID:    project.ID,
+	}
+	s.activityLogger.Log(activity)
+
+	return buf.Bytes(), nil
 }
