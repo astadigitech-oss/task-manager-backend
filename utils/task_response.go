@@ -7,19 +7,20 @@ import (
 )
 
 type TaskResponse struct {
-	ID          uint                 `json:"id"`
-	Title       string               `json:"title"`
-	Description string               `json:"description"`
-	Status      string               `json:"status"`
-	Priority    string               `json:"priority"`
-	StartDate   time.Time            `json:"start_date"`
-	DueDate     time.Time            `json:"due_date"`
-	Notes       *string              `json:"notes"`
-	ProjectID   uint                 `json:"project_id"`
-	Members     []TaskMemberResponse `json:"members"`
-	Images      []TaskImageResponse  `json:"images"`
-	MemberCount int                  `json:"member_count"`
-	CreatedAt   string               `json:"created_at"`
+	ID              uint                 `json:"id"`
+	Title           string               `json:"title"`
+	Description     string               `json:"description"`
+	Status          string               `json:"status"`
+	Priority        string               `json:"priority"`
+	StartDate       time.Time            `json:"start_date"`
+	DueDate         time.Time            `json:"due_date"`
+	Notes           *string              `json:"notes"`
+	ProjectID       uint                 `json:"project_id"`
+	Members         []TaskMemberResponse `json:"members"`
+	Images          []TaskImageResponse  `json:"images"`
+	MemberCount     int                  `json:"member_count"`
+	OverDueDuration int                  `json:"overdue_duration"`
+	CreatedAt       string               `json:"created_at"`
 }
 
 type SimpleTaskResponse struct {
@@ -64,19 +65,20 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 	}
 
 	return TaskResponse{
-		ID:          task.ID,
-		Title:       task.Title,
-		Description: task.Description,
-		Status:      task.Status,
-		Priority:    task.Priority,
-		StartDate:   task.StartDate,
-		DueDate:     task.DueDate,
-		Notes:       task.Notes,
-		ProjectID:   task.ProjectID,
-		Members:     memberResponses,
-		Images:      imageResponses,
-		MemberCount: len(task.Members),
-		CreatedAt:   task.CreatedAt.Format("2006-01-02 15:04:05"),
+		ID:              task.ID,
+		Title:           task.Title,
+		Description:     task.Description,
+		Status:          task.Status,
+		Priority:        task.Priority,
+		StartDate:       task.StartDate,
+		DueDate:         task.DueDate,
+		Notes:           task.Notes,
+		ProjectID:       task.ProjectID,
+		Members:         memberResponses,
+		Images:          imageResponses,
+		MemberCount:     len(task.Members),
+		OverDueDuration: int(task.OverdueDuration),
+		CreatedAt:       task.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -86,18 +88,4 @@ func ToTaskResponseList(tasks []models.Task) []TaskResponse {
 		resp[i] = ToTaskResponse(&t)
 	}
 	return resp
-}
-
-func ToTaskMemberResponseList(members []models.TaskUser) []TaskMemberResponse {
-	var memberResponses []TaskMemberResponse
-	for _, member := range members {
-		memberResponses = append(memberResponses, TaskMemberResponse{
-			UserID:     member.User.ID,
-			UserName:   member.User.Name,
-			UserEmail:  member.User.Email,
-			RoleInTask: member.RoleInTask,
-			AssignedAt: member.AssignedAt.Format("2006-01-02 15:04:05"),
-		})
-	}
-	return memberResponses
 }
