@@ -26,7 +26,7 @@ type TaskRepository interface {
 	GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error)
 	GetAllTasksByUserID(userID uint) ([]models.Task, error)
 	GetAllTasksForAdmin() ([]models.Task, error)
-	GetTasksByProjectIDAndFilter(projectID uint, filter string) ([]models.Task, error)
+	GetTasksByProjectIDAndFilter(projectID uint, filter string) ([]models.Task, error) // This is UNTOUCHED
 
 	GetTasksInProgressSince(projectID uint, since time.Time) ([]models.Task, error)
 	GetTasksDoneSince(projectID uint, since time.Time) ([]models.Task, error)
