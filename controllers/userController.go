@@ -65,6 +65,7 @@ func (uc *UserController) GetAllUsers(c *gin.Context) {
 			"role":          user.Role,
 			"profile_image": user.ProfileImage,
 			"is_online":     user.IsOnline,
+			"position":      user.Position,
 			"created_at":    user.CreatedAt.Format("2006-01-02 15:04:05"),
 			"updated_at":    user.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}

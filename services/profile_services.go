@@ -36,6 +36,11 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 		u.Name = name
 	}
 
+	position := c.PostForm("position")
+	if position != "" {
+		u.Position = &position
+	}
+
 	file, err := c.FormFile("profile_image")
 	if err == nil {
 		oldProfileImage := u.ProfileImage
