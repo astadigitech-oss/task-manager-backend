@@ -1,12 +1,14 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,27 +47,30 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 	if err == nil {
 		oldProfileImage := u.ProfileImage
 
-		uploadDir, _ := filepath.Abs("uploads/profiles")
+		uploadDir, _ := filepath.Abs("uploads/profile_images")
 		if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
 			return
 		}
 
 		filename := filepath.Base(file.Filename)
-		newPath := filepath.Join(uploadDir, filename)
+		serverPath := filepath.Join(uploadDir, filename)
+		urlPath := fmt.Sprintf("/profile-images/%s", filename)
 
-		if err := c.SaveUploadedFile(file, newPath); err != nil {
+		if err := c.SaveUploadedFile(file, serverPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 			return
 		}
-		u.ProfileImage = &newPath
+		u.ProfileImage = &urlPath
 
 		if oldProfileImage != nil && *oldProfileImage != "" {
-			go func(oldPath string) {
-				if err := os.Remove(oldPath); err != nil {
-					log.Printf("[Cleanup] Failed to delete %s: %s", oldPath, err.Error())
+			go func(oldURLPath string) {
+				// Convert URL path back to server file path for deletion
+				oldServerPath := filepath.Join("uploads", strings.TrimPrefix(oldURLPath, "/"))
+				if err := os.Remove(oldServerPath); err != nil {
+					log.Printf("[Cleanup] Failed to delete %s: %s", oldServerPath, err.Error())
 				} else {
-					log.Printf("[Cleanup] Deleted %s", oldPath)
+					log.Printf("[Cleanup] Deleted %s", oldServerPath)
 				}
 			}(*oldProfileImage)
 		}
@@ -88,10 +93,10 @@ func (s *ProfileService) DeleteProfileImage(c *gin.Context) {
 
 	u := user.(*models.User)
 
-	if u.ProfileImage != nil {
-		if err := os.Remove(*u.ProfileImage); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image file"})
-			return
+	if u.ProfileImage != nil && *u.ProfileImage != "" {
+		serverPath := filepath.Join("uploads", strings.TrimPrefix(*u.ProfileImage, "/"))
+		if err := os.Remove(serverPath); err != nil {
+			log.Printf("[Delete] Failed to delete image file %s: %s", serverPath, err.Error())
 		}
 	}
 

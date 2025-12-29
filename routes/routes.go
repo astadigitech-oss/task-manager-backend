@@ -181,4 +181,5 @@ func SetupRoutes(r *gin.Engine) {
 	}
 
 	r.Static("/uploads", "./uploads")
+	r.Static("/profile-images", "./uploads/profile_images")
 }
