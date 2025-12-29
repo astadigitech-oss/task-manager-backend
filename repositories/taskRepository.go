@@ -26,6 +26,12 @@ type TaskRepository interface {
 	GetTasksByUserID(projectID uint, userID uint) ([]models.Task, error)
 	GetAllTasksByUserID(userID uint) ([]models.Task, error)
 	GetAllTasksForAdmin() ([]models.Task, error)
+	GetTasksByProjectIDAndFilter(projectID uint, filter string) ([]models.Task, error)
+
+	GetTasksInProgressSince(projectID uint, since time.Time) ([]models.Task, error)
+	GetTasksDoneSince(projectID uint, since time.Time) ([]models.Task, error)
+	GetTasksStartingBetween(projectID uint, from, to time.Time) ([]models.Task, error)
+	GetOnProgressTasksDueBetween(projectID uint, from, to time.Time) ([]models.Task, error)
 }
 
 type taskRepository struct{}
@@ -195,4 +201,100 @@ func (r *taskRepository) IsUserInProject(projectID uint, userID uint) (bool, err
 		Where("project_id = ? AND user_id = ?", projectID, userID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (r *taskRepository) GetTasksByProjectIDAndFilter(projectID uint, filter string) ([]models.Task, error) {
+	var tasks []models.Task
+	db := config.DB.
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
+		Preload("Members.User").
+		Preload("Images").
+		Preload("Project")
+
+	now := time.Now()
+	// Definisi waktu untuk 1 hari
+	oneDayAgo := now.AddDate(0, 0, -1)
+	oneDayLater := now.AddDate(0, 0, 1)
+
+	// Definisi waktu untuk 1 minggu
+	oneWeekAgo := now.AddDate(0, 0, -7)
+	oneWeekLater := now.AddDate(0, 0, 7)
+
+	switch filter {
+	// --- LAPORAN KEBELAKANG (PAST) ---
+	case "last_week_in_progress":
+		// Apa yang sedang dikerjakan dalam 1 minggu terakhir
+		db = db.Where("tasks.status = 'in_progress' AND tasks.updated_at BETWEEN ? AND ?", oneWeekAgo, now)
+	case "last_week_done":
+		// Apa yang sudah selesai dalam 1 minggu terakhir
+		db = db.Where("tasks.status = 'done' AND tasks.finished_at BETWEEN ? AND ?", oneWeekAgo, now)
+	case "last_day_in_progress":
+		// Apa yang sedang dikerjakan dalam 1 hari terakhir
+		db = db.Where("tasks.status = 'in_progress' AND tasks.updated_at BETWEEN ? AND ?", oneDayAgo, now)
+	case "last_day_done":
+		// Apa yang sudah selesai dalam 1 hari terakhir
+		db = db.Where("tasks.status = 'done' AND tasks.finished_at BETWEEN ? AND ?", oneDayAgo, now)
+
+	// --- RENCANA KEDEPAN (FUTURE) ---
+	case "next_week_starting":
+		// Apa yang akan dimulai dalam 1 minggu ke depan
+		db = db.Where("tasks.start_date BETWEEN ? AND ?", now, oneWeekLater)
+	case "next_week_due":
+		// Apa yang 'on_progress' dan harus selesai dalam 1 minggu ke depan
+		db = db.Where("tasks.status = 'on_progress' AND tasks.due_date BETWEEN ? AND ?", now, oneWeekLater)
+	case "next_day_starting":
+		// Apa yang akan dimulai dalam 1 hari ke depan
+		db = db.Where("tasks.start_date BETWEEN ? AND ?", now, oneDayLater)
+	case "next_day_due":
+		// Apa yang 'on_progress' dan harus selesai dalam 1 hari ke depan
+		db = db.Where("tasks.status = 'on_progress' AND tasks.due_date BETWEEN ? AND ?", now, oneDayLater)
+
+	// Filter bulanan yang sudah ada bisa dipertahankan jika masih relevan
+	case "monthly":
+		oneMonthAgo := now.AddDate(0, -1, 0)
+		db = db.Where("tasks.created_at BETWEEN ? AND ?", oneMonthAgo, now)
+	}
+
+	err := db.Find(&tasks).Error
+	return tasks, err
+}
+
+func newBaseTaskQuery(projectID uint) *gorm.DB {
+	return config.DB.
+		Joins("JOIN projects ON projects.id = tasks.project_id").
+		Joins("JOIN workspaces ON workspaces.id = projects.workspace_id").
+		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
+		Preload("Members.User").
+		Preload("Images").
+		Preload("Project")
+}
+
+func (r *taskRepository) GetTasksInProgressSince(projectID uint, since time.Time) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.status = 'in_progress' AND tasks.updated_at >= ?", since).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetTasksDoneSince(projectID uint, since time.Time) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.status = 'done' AND tasks.finished_at >= ?", since).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetTasksStartingBetween(projectID uint, from, to time.Time) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.start_date BETWEEN ? AND ?", from, to).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetOnProgressTasksDueBetween(projectID uint, from, to time.Time) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.status = 'in_progress' AND tasks.due_date BETWEEN ? AND ?", from, to).Find(&tasks).Error
+	return tasks, err
 }

@@ -38,14 +38,22 @@ func (s *DashboardService) GetAllTaskForAdmin() ([]models.Task, error) {
 		return nil, err
 	}
 
-	var filteredTasksAdmin []models.Task
+	var overdueTasks []models.Task
 	now := time.Now()
-	threeDaysFromNow := now.AddDate(0, 0, 3)
 
-	for _, task := range tasks {
-		if task.Status != "Done" && task.DueDate.Before(threeDaysFromNow) || task.DueDate.Equal(now) {
-			filteredTasksAdmin = append(filteredTasksAdmin, task)
+	for i := range tasks {
+		task := &tasks[i]
+		isOverdue := task.DueDate.Before(now)
+
+		if isOverdue {
+			if task.Status == "Done" && task.FinishedAt != nil && task.FinishedAt.After(task.DueDate) {
+				task.OverdueDuration = task.FinishedAt.Sub(task.DueDate)
+				overdueTasks = append(overdueTasks, *task)
+			} else if task.Status != "Done" {
+				task.OverdueDuration = now.Sub(task.DueDate)
+				overdueTasks = append(overdueTasks, *task)
+			}
 		}
 	}
-	return filteredTasksAdmin, nil
+	return overdueTasks, nil
 }

@@ -121,7 +121,13 @@ func SetupRoutes(r *gin.Engine) {
 		{
 			projects.GET("", projectController.ListProjects)
 			projects.POST("", adminMiddleware, projectController.CreateProject)
-			projects.GET("/export", exportController.ExportProject) // Tambahkan export route
+			exportGroup := projects.Group("/:project_id/export")
+			{
+				// New specific routes
+				exportGroup.GET("/daily", exportController.ExportDaily)
+				exportGroup.GET("/weekly-backward", exportController.ExportWeeklyBackward)
+				exportGroup.GET("/weekly-forward", exportController.ExportWeeklyForward)
+			}
 
 			project := projects.Group("/:project_id")
 			{
@@ -133,7 +139,7 @@ func SetupRoutes(r *gin.Engine) {
 				project.GET("/members", projectController.GetMembers)
 				project.POST("/members", adminMiddleware, projectController.AddMember)
 				project.DELETE("/members/:user_id", adminMiddleware, projectController.RemoveSingleMember)
-				project.DELETE("/members/", adminMiddleware, projectController.RemoveMember)
+				project.DELETE("/members", adminMiddleware, projectController.RemoveMember)
 
 				// Project Images
 				images := project.Group("/images")

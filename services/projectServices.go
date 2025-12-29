@@ -27,6 +27,10 @@ type ProjectService interface {
 	RemoveMember(projectID uint, userID uint, currentUser *models.User) error
 	RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error
 	ExportProject(projectID uint, userID uint, filter string) ([]byte, error)
+
+	ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error)
+	ExportWeeklyForward(projectID uint, userID uint) ([]byte, error)
+	ExportDaily(projectID uint, userID uint) ([]byte, error)
 }
 
 type ProjectMember struct {
@@ -340,4 +344,113 @@ func (s *projectService) ExportProject(projectID uint, userID uint, filter strin
 	s.activityLogger.Log(activity)
 
 	return buf.Bytes(), nil
+}
+
+func (s *projectService) export(projectID uint, userID uint, period string, tasks []models.Task, actionLog string) ([]byte, error) {
+	project, err := s.repo.GetByID(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	pic, err := s.userRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PIC details: %w", err)
+	}
+
+	pdf, err := s.pdfService.GenerateProjectReportPDF(project, tasks, *pic, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
+	}
+
+	activity := models.ActivityLog{
+		UserID:    userID,
+		Action:    fmt.Sprintf("User exported project '%s' - %s", project.Name, actionLog),
+		TableName: "projects",
+		ItemID:    project.ID,
+	}
+	s.activityLogger.Log(activity)
+
+	return buf.Bytes(), nil
+}
+
+// Export 1: Weekly Backward Report
+func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error) {
+	now := time.Now()
+	oneWeekAgo := now.AddDate(0, 0, -7)
+
+	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+
+	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := append(inProgressTasks, doneTasks...)
+	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+
+	return s.export(projectID, userID, period, tasks, "Weekly Backward Report")
+}
+
+// Export 2: Weekly Forward Report
+func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byte, error) {
+	now := time.Now()
+	oneWeekLater := now.AddDate(0, 0, 7)
+
+	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekLater)
+	if err != nil {
+		return nil, err
+	}
+
+	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneWeekLater)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := append(startingTasks, dueTasks...)
+	period := fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
+
+	return s.export(projectID, userID, period, tasks, "Weekly Forward Report")
+}
+
+// Export 3: Daily Report
+func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error) {
+	now := time.Now()
+	oneDayAgo := now.AddDate(0, 0, -1)
+	oneDayLater := now.AddDate(0, 0, 1)
+
+	// Backward-looking tasks
+	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
+	if err != nil {
+		return nil, err
+	}
+	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Forward-looking tasks
+	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneDayLater)
+	if err != nil {
+		return nil, err
+	}
+	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneDayLater)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := append(inProgressTasks, doneTasks...)
+	tasks = append(tasks, startingTasks...)
+	tasks = append(tasks, dueTasks...)
+
+	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
+
+	return s.export(projectID, userID, period, tasks, "Daily Report")
 }
