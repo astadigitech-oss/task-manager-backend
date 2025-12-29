@@ -355,9 +355,10 @@ func (wc *WorkspaceController) GetMembers(c *gin.Context) {
 	memberList := make([]gin.H, 0)
 	for _, member := range members {
 		memberList = append(memberList, gin.H{
-			"id":   member.User.ID,
-			"name": member.User.Name,
-			"role": member.User.Role, // role_in_workspace
+			"id":          member.User.ID,
+			"name":        member.User.Name,
+			"role":        member.User.Role,
+			"profile_img": member.User.ProfileImage,
 		})
 	}
 

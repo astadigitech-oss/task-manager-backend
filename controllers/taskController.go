@@ -380,12 +380,23 @@ func (tc *TaskController) GetMembers(c *gin.Context) {
 		return
 	}
 
-	memberResponses := utils.ToTaskMemberResponseList(members)
+	memberTask := make([]gin.H, 0)
+	for _, member := range members {
+		memberTask = append(memberTask, gin.H{
+			"id":           member.User.ID,
+			"name":         member.User.Name,
+			"user_email":   member.User.Email,
+			"role_in_task": member.RoleInTask,
+			"profile_img":  member.User.ProfileImage,
+			"workspace_id": workspaceID,
+		})
+	}
+
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
 		Message: "Members task berhasil diambil",
-		Data:    memberResponses,
+		Data:    memberTask,
 	})
 }
 
