@@ -115,3 +115,23 @@ func (c *ExportController) ExportDaily(ctx *gin.Context) {
 	ctx.Header("Content-Disposition", "attachment; filename=project_report_daily.pdf")
 	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
+
+func (c *ExportController) ExportAgenda(ctx *gin.Context) {
+	projectID, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	user, _ := ctx.Get("user")
+	currentUser, _ := user.(*models.User)
+
+	pdfBytes, err := c.projectService.ExportAgenda(uint(projectID), currentUser.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.Header("Content-Disposition", "attachment; filename=project_report_agenda.pdf")
+	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
+}

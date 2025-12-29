@@ -127,6 +127,7 @@ func SetupRoutes(r *gin.Engine) {
 				exportGroup.GET("/daily", exportController.ExportDaily)
 				exportGroup.GET("/weekly-backward", exportController.ExportWeeklyBackward)
 				exportGroup.GET("/weekly-forward", exportController.ExportWeeklyForward)
+				exportGroup.GET("/agenda", exportController.ExportAgenda)
 			}
 
 			project := projects.Group("/:project_id")

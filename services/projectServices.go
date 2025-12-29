@@ -31,6 +31,7 @@ type ProjectService interface {
 	ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error)
 	ExportWeeklyForward(projectID uint, userID uint) ([]byte, error)
 	ExportDaily(projectID uint, userID uint) ([]byte, error)
+	ExportAgenda(projectID uint, userID uint) ([]byte, error)
 }
 
 type ProjectMember struct {
@@ -453,4 +454,43 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
 
 	return s.export(projectID, userID, period, tasks, "Daily Report")
+}
+
+func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, error) {
+	now := time.Now()
+	oneWeekAgo := now.AddDate(0, 0, -7)
+	oneWeekLater := now.AddDate(0, 0, 7)
+
+	// --- Backward-looking tasks (from ExportWeeklyBackward) ---
+	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Forward-looking tasks (from ExportWeeklyForward) ---
+	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekLater)
+	if err != nil {
+		return nil, err
+	}
+	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneWeekLater)
+	if err != nil {
+		return nil, err
+	}
+
+	// --- Combine all tasks ---
+	var tasks []models.Task
+	tasks = append(tasks, inProgressTasks...)
+	tasks = append(tasks, doneTasks...)
+	tasks = append(tasks, startingTasks...)
+	tasks = append(tasks, dueTasks...)
+
+	// Define the period string
+	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
+
+	// Use the generic export function
+	return s.export(projectID, userID, period, tasks, "Agenda Report")
 }
