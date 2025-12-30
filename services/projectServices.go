@@ -12,6 +12,7 @@ import (
 
 	"time"
 
+	"github.com/jung-kurt/gofpdf"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +27,7 @@ type ProjectService interface {
 	GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error)
 	RemoveMember(projectID uint, userID uint, currentUser *models.User) error
 	RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error
-	ExportProject(projectID uint, userID uint, filter string) ([]byte, error)
+	// ExportProject(projectID uint, userID uint, filter string) ([]byte, error)
 
 	ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error)
 	ExportWeeklyForward(projectID uint, userID uint) ([]byte, error)
@@ -285,84 +286,121 @@ func (s *projectService) RemoveMembers(projectID uint, userIDs []uint, currentUs
 	return s.repo.RemoveMembers(projectID, userIDs)
 }
 
-func (s *projectService) ExportProject(projectID uint, userID uint, filter string) ([]byte, error) {
-	// 1. Fetch project details
+// func (s *projectService) ExportProject(projectID uint, userID uint, filter string) ([]byte, error) {
+// 	// 1. Fetch project details
+// 	project, err := s.repo.GetByID(projectID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get project: %w", err)
+// 	}
+
+// 	// 2. Fetch user details (PIC)
+// 	pic, err := s.userRepo.GetUserByID(userID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get PIC details: %w", err)
+// 	}
+
+// 	// 3. Fetch tasks based on filter
+// 	tasks, err := s.taskRepo.GetTasksByProjectIDAndFilter(projectID, filter)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get tasks: %w", err)
+// 	}
+
+// 	// 4. Create period string
+// 	now := time.Now()
+// 	oneWeekAgo := now.AddDate(0, 0, -7)
+// 	oneWeekLater := now.AddDate(0, 0, 7)
+// 	period := ""
+// 	switch filter {
+// 	case "daily":
+// 		period = fmt.Sprintf("%s", now.Format("02 Jan 2006"))
+// 	case "weekly", "last_week_in_progress", "last_week_done":
+// 		period = fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+// 	case "monthly":
+// 		oneMonthAgo := now.AddDate(0, -1, 0)
+// 		period = fmt.Sprintf("%s - %s", oneMonthAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+// 	case "next_week_starting", "next_week_due":
+// 		period = fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
+// 	default:
+// 		period = "All Time"
+// 	}
+
+// 	// 5. Generate PDF
+// 	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, tasks, *pic, period)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+// 	}
+
+// 	// 6. Output PDF to buffer
+// 	var buf bytes.Buffer
+// 	if err := pdf.Output(&buf); err != nil {
+// 		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
+// 	}
+
+// 	// Log activity
+// 	activity := models.ActivityLog{
+// 		UserID:    userID,
+// 		Action:    fmt.Sprintf("User exported project '%s' with filter '%s'", project.Name, filter),
+// 		TableName: "projects",
+// 		ItemID:    project.ID,
+// 	}
+// 	s.activityLogger.Log(activity)
+
+// 	return buf.Bytes(), nil
+// }
+
+// func (s *projectService) export(projectID uint, userID uint, period string, tasks []models.Task, actionLog string) ([]byte, error) {
+// 	project, err := s.repo.GetByID(projectID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get project: %w", err)
+// 	}
+
+// 	pic, err := s.userRepo.GetUserByID(userID)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to get PIC details: %w", err)
+// 	}
+
+// 	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, tasks, *pic, period)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+// 	}
+
+// 	var buf bytes.Buffer
+// 	if err := pdf.Output(&buf); err != nil {
+// 		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
+// 	}
+
+// 	activity := models.ActivityLog{
+// 		UserID:    userID,
+// 		Action:    fmt.Sprintf("User exported project '%s' - %s", project.Name, actionLog),
+// 		TableName: "projects",
+// 		ItemID:    project.ID,
+// 	}
+// 	s.activityLogger.Log(activity)
+
+// 	return buf.Bytes(), nil
+// }
+
+// Private helper function to fetch project and PIC details
+func (s *projectService) getProjectAndPIC(projectID uint, userID uint) (*models.Project, *models.User, error) {
 	project, err := s.repo.GetByID(projectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		return nil, nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	// 2. Fetch user details (PIC)
 	pic, err := s.userRepo.GetUserByID(userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PIC details: %w", err)
+		return nil, nil, fmt.Errorf("failed to get PIC details: %w", err)
 	}
 
-	// 3. Fetch tasks based on filter
-	tasks, err := s.taskRepo.GetTasksByProjectIDAndFilter(projectID, filter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tasks: %w", err)
-	}
-
-	// 4. Create period string
-	now := time.Now()
-	oneWeekAgo := now.AddDate(0, 0, -7)
-	oneWeekLater := now.AddDate(0, 0, 7)
-	period := ""
-	switch filter {
-	case "daily":
-		period = fmt.Sprintf("%s", now.Format("02 Jan 2006"))
-	case "weekly", "last_week_in_progress", "last_week_done":
-		period = fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
-	case "monthly":
-		oneMonthAgo := now.AddDate(0, -1, 0)
-		period = fmt.Sprintf("%s - %s", oneMonthAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
-	case "next_week_starting", "next_week_due":
-		period = fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
-	default:
-		period = "All Time"
-	}
-
-	// 5. Generate PDF
-	pdf, err := s.pdfService.GenerateProjectReportPDF(project, tasks, *pic, period)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PDF: %w", err)
-	}
-
-	// 6. Output PDF to buffer
-	var buf bytes.Buffer
-	if err := pdf.Output(&buf); err != nil {
-		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
-	}
-
-	// Log activity
-	activity := models.ActivityLog{
-		UserID:    userID,
-		Action:    fmt.Sprintf("User exported project '%s' with filter '%s'", project.Name, filter),
-		TableName: "projects",
-		ItemID:    project.ID,
-	}
-	s.activityLogger.Log(activity)
-
-	return buf.Bytes(), nil
+	return project, pic, nil
 }
 
-func (s *projectService) export(projectID uint, userID uint, period string, tasks []models.Task, actionLog string) ([]byte, error) {
-	project, err := s.repo.GetByID(projectID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
-
-	pic, err := s.userRepo.GetUserByID(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get PIC details: %w", err)
-	}
-
-	pdf, err := s.pdfService.GenerateProjectReportPDF(project, tasks, *pic, period)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PDF: %w", err)
-	}
-
+func (s *projectService) generatePDFAndLog(
+	pdf *gofpdf.Fpdf,
+	project *models.Project,
+	userID uint,
+	reportName string,
+) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, fmt.Errorf("failed to write PDF to buffer: %w", err)
@@ -370,7 +408,7 @@ func (s *projectService) export(projectID uint, userID uint, period string, task
 
 	activity := models.ActivityLog{
 		UserID:    userID,
-		Action:    fmt.Sprintf("User exported project '%s' - %s", project.Name, actionLog),
+		Action:    fmt.Sprintf("User exported project '%s' - %s", project.Name, reportName),
 		TableName: "projects",
 		ItemID:    project.ID,
 	}
@@ -397,7 +435,17 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 	tasks := append(inProgressTasks, doneTasks...)
 	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
 
-	return s.export(projectID, userID, period, tasks, "Weekly Backward Report")
+	project, pic, err := s.getProjectAndPIC(projectID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasks, *pic, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	return s.generatePDFAndLog(pdf, project, userID, "Weekly Backward Report")
 }
 
 // Export 2: Weekly Forward Report
@@ -418,14 +466,23 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 	tasks := append(startingTasks, dueTasks...)
 	period := fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
 
-	return s.export(projectID, userID, period, tasks, "Weekly Forward Report")
+	project, pic, err := s.getProjectAndPIC(projectID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasks, *pic, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	return s.generatePDFAndLog(pdf, project, userID, "Weekly Forward Report")
 }
 
 // Export 3: Daily Report
 func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
 	oneDayAgo := now.AddDate(0, 0, -1)
-	oneDayLater := now.AddDate(0, 0, 1)
 
 	// Backward-looking tasks
 	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
@@ -437,25 +494,24 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 		return nil, err
 	}
 
-	// Forward-looking tasks
-	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneDayLater)
-	if err != nil {
-		return nil, err
-	}
-	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneDayLater)
-	if err != nil {
-		return nil, err
-	}
-
 	tasks := append(inProgressTasks, doneTasks...)
-	tasks = append(tasks, startingTasks...)
-	tasks = append(tasks, dueTasks...)
 
 	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
 
-	return s.export(projectID, userID, period, tasks, "Daily Report")
+	project, pic, err := s.getProjectAndPIC(projectID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf, err := s.pdfService.GenerateDailyReportPDF(project, tasks, *pic, period)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	return s.generatePDFAndLog(pdf, project, userID, "Daily Report")
 }
 
+// Export 4: Agenda Report
 func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
@@ -491,6 +547,25 @@ func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, erro
 	// Define the period string
 	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
 
+	// --- Data for Daily Report ---
+	oneDayAgo := now.AddDate(0, 0, -1)
+	dailyInProgress, _ := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
+	dailyDone, _ := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
+	var dailyTasks []models.Task
+	dailyTasks = append(dailyTasks, dailyInProgress...)
+	dailyTasks = append(dailyTasks, dailyDone...)
+	dailyDate := now.Format("Monday, 02-01-2006")
+
+	project, pic, err := s.getProjectAndPIC(projectID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, tasks, dailyTasks, *pic, period, dailyDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
 	// Use the generic export function
-	return s.export(projectID, userID, period, tasks, "Agenda Report")
+	return s.generatePDFAndLog(pdf, project, userID, "Agenda Report")
 }

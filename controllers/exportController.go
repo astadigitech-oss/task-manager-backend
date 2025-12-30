@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"project-management-backend/models"
 	"project-management-backend/services"
 
 	"github.com/gin-gonic/gin"
@@ -20,49 +19,48 @@ func NewExportController(projectService services.ProjectService) *ExportControll
 	}
 }
 
-func (c *ExportController) ExportProject(ctx *gin.Context) {
-	projectID, err := strconv.Atoi(ctx.Param("id"))
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
+// func (c *ExportController) ExportProject(ctx *gin.Context) {
+// 	projectID, err := strconv.Atoi(ctx.Param("id"))
+// 	if err != nil {
+// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+// 		return
+// 	}
 
-	filter := ctx.Query("filter")
+// 	filter := ctx.Query("filter")
 
-	user, exists := ctx.Get("user")
-	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-		return
-	}
+// 	user, exists := ctx.Get("user")
+// 	if !exists {
+// 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+// 		return
+// 	}
 
-	currentUser, ok := user.(*models.User)
-	if !ok {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user type in context"})
-		return
-	}
+// 	currentUser, ok := user.(*models.User)
+// 	if !ok {
+// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user type in context"})
+// 		return
+// 	}
 
-	pdfBytes, err := c.projectService.ExportProject(uint(projectID), currentUser.ID, filter)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+// 	pdfBytes, err := c.projectService.ExportProject(uint(projectID), currentUser.ID, filter)
+// 	if err != nil {
+// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+// 		return
+// 	}
 
-	ctx.Header("Content-Disposition", "attachment; filename=project_report.pdf")
-	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
-}
+// 	ctx.Header("Content-Disposition", "attachment; filename=project_report.pdf")
+// 	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
+// }
 
 // --- START: NEW CONTROLLERS ADDED FOR NEW ROUTES ---
 
 // Handler for Weekly Backward Report
 func (c *ExportController) ExportWeeklyBackward(ctx *gin.Context) {
-	projectID, err := strconv.Atoi(ctx.Param("id"))
+	projectID, err := strconv.Atoi(ctx.Param("project_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project ID tidak ditemukan"})
 		return
 	}
 
-	user, _ := ctx.Get("user")
-	currentUser, _ := user.(*models.User)
+	currentUser := GetCurrentUser(ctx)
 
 	pdfBytes, err := c.projectService.ExportWeeklyBackward(uint(projectID), currentUser.ID)
 	if err != nil {
@@ -76,14 +74,13 @@ func (c *ExportController) ExportWeeklyBackward(ctx *gin.Context) {
 
 // Handler for Weekly Forward Report
 func (c *ExportController) ExportWeeklyForward(ctx *gin.Context) {
-	projectID, err := strconv.Atoi(ctx.Param("id"))
+	projectID, err := strconv.Atoi(ctx.Param("project_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project ID tidak ditemukan"})
 		return
 	}
 
-	user, _ := ctx.Get("user")
-	currentUser, _ := user.(*models.User)
+	currentUser := GetCurrentUser(ctx)
 
 	pdfBytes, err := c.projectService.ExportWeeklyForward(uint(projectID), currentUser.ID)
 	if err != nil {
@@ -97,14 +94,13 @@ func (c *ExportController) ExportWeeklyForward(ctx *gin.Context) {
 
 // Handler for Daily Report
 func (c *ExportController) ExportDaily(ctx *gin.Context) {
-	projectID, err := strconv.Atoi(ctx.Param("id"))
+	projectID, err := strconv.Atoi(ctx.Param("project_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project ID tidak ditemukan"})
 		return
 	}
 
-	user, _ := ctx.Get("user")
-	currentUser, _ := user.(*models.User)
+	currentUser := GetCurrentUser(ctx)
 
 	pdfBytes, err := c.projectService.ExportDaily(uint(projectID), currentUser.ID)
 	if err != nil {
@@ -117,14 +113,13 @@ func (c *ExportController) ExportDaily(ctx *gin.Context) {
 }
 
 func (c *ExportController) ExportAgenda(ctx *gin.Context) {
-	projectID, err := strconv.Atoi(ctx.Param("id"))
+	projectID, err := strconv.Atoi(ctx.Param("project_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project ID tidak ditemukan"})
 		return
 	}
 
-	user, _ := ctx.Get("user")
-	currentUser, _ := user.(*models.User)
+	currentUser := GetCurrentUser(ctx)
 
 	pdfBytes, err := c.projectService.ExportAgenda(uint(projectID), currentUser.ID)
 	if err != nil {
