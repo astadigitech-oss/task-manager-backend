@@ -53,24 +53,6 @@ func main() {
 
 	sqlDB.SetConnMaxLifetime(30 * time.Hour)
 
-	// Auto-migrate semua model
-	err = config.DB.AutoMigrate(
-		&models.User{},
-		&models.Workspace{},
-		&models.Project{},
-		&models.ProjectImage{},
-		&models.Task{},
-		&models.TaskImage{},
-		&models.WorkspaceUser{},
-		&models.ProjectUser{},
-		&models.TaskUser{},
-		&models.ActivityLog{},
-		&models.ErrorLog{},
-	)
-	if err != nil {
-		log.Fatal("Migration error: ", err)
-	}
-
 	// Clean up any stale online statuses from a previous crash/restart
 	CleanupOnlineStatus()
 
