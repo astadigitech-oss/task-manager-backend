@@ -29,13 +29,24 @@ func SeedData(db *gorm.DB) error {
 			return err
 		}
 
-		user := models.User{
-			Name:     "Test User",
-			Email:    "test3@example.com",
-			Password: string(hashedPassword),
-			Role:     "user",
-			IsOnline: false,
+		users := []models.User{
+		    {
+		        Name:     "Test User",
+		        Email:    "test@example.com",
+		        Password: string(hashedPassword),
+		        Role:     "member",
+		    },
+		    {
+		        Name:     "Admin",
+		        Email:    "admin@example.com",
+		        Password: string(hashedPassword),
+		        Role:     "admin",
+		    },
 		}
+
+if err := tx.Create(&users).Error; err != nil {
+    return err
+}
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
