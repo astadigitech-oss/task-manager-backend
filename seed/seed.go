@@ -44,9 +44,6 @@ func SeedData(db *gorm.DB) error {
 		    },
 		}
 
-if err := tx.Create(&users).Error; err != nil {
-    return err
-}
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
