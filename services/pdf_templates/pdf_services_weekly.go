@@ -59,12 +59,22 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 	pdf.SetFont("Arial", "B", 10)
 	pdf.SetFillColor(240, 240, 240)
 	pdf.SetTextColor(0, 0, 0)
-	headers := []string{"No", "Waktu", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status", "Estimasi"}
-	colWidths := []float64{10, 20, 35, 35, 35, 20, 20, 20}
+	headers := []string{"No", "Hari/\nTanggal", "Penanggung\nJawab", "Agenda", "Sub-Agenda", "Kondisi", "Estimasi", "Realisasi"}
+	colWidths := []float64{10, 25, 25, 35, 35, 15, 25, 25} // Lebar kolom yang disesuaikan
+
+	headerRowHeight := 12.0
+	lineHeight := 5.5
+
+	x := pdf.GetX()
+	y := pdf.GetY()
+
 	for i, header := range headers {
-		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", true, 0, "")
+		pdf.Rect(x, y, colWidths[i], headerRowHeight, "DF")
+		pdf.SetXY(x, y+2)
+		pdf.MultiCell(colWidths[i], lineHeight, header, "", "C", false)
+		x += colWidths[i]
 	}
-	pdf.Ln(-1)
+	pdf.SetY(y + headerRowHeight)
 
 	// --- TABLE ROWS ---
 	pdf.SetFont("Arial", "", 9)
@@ -83,6 +93,16 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 		// Calculate estimation
 		estimasi := formatDuration(task.DueDate.Sub(task.StartDate))
 
+		var realisasi string
+		if task.FinishedAt != nil && !task.FinishedAt.IsZero() {
+			// Tugas sudah selesai, hitung durasi aktual
+			realisasiDuration := task.FinishedAt.Sub(task.StartDate)
+			realisasi = formatDuration(realisasiDuration)
+		} else {
+			// Tugas belum selesai
+			realisasi = "On Progress"
+		}
+
 		rowData := []string{
 			fmt.Sprintf("%d", i+1),
 			task.StartDate.Format("02/01/2006"),
@@ -90,8 +110,8 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 			task.Project.Name,
 			task.Title,
 			task.Priority,
-			task.Status,
 			estimasi,
+			realisasi,
 		}
 
 		// Add cell for each data point

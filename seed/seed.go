@@ -31,7 +31,7 @@ func SeedData(db *gorm.DB) error {
 
 		user := models.User{
 			Name:     "Test User",
-			Email:    "test@example.com",
+			Email:    "test3@example.com",
 			Password: string(hashedPassword),
 			Role:     "user",
 			IsOnline: false,
@@ -87,7 +87,7 @@ func SeedData(db *gorm.DB) error {
 			ProjectID:   project.ID,
 			Title:       "Design the homepage",
 			Description: "Create a mockup for the new homepage design.",
-			Status:      "todo",
+			Status:      "on_progress",
 			Priority:    "high",
 			StartDate:   time.Now(),
 			DueDate:     time.Now().AddDate(0, 0, 7), // Due in 7 days
@@ -98,8 +98,8 @@ func SeedData(db *gorm.DB) error {
 
 		// 7. Seed TaskUser (linking user to task)
 		taskUser := models.TaskUser{
-			TaskID: task.ID,
-			UserID: user.ID,
+			TaskID:     task.ID,
+			UserID:     user.ID,
 			AssignedAt: time.Now(),
 		}
 		if err := tx.Create(&taskUser).Error; err != nil {
