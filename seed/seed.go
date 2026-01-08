@@ -29,24 +29,31 @@ func SeedData(db *gorm.DB) error {
 			return err
 		}
 
-		users := []models.User{
-		    {
-		        Name:     "Test User",
-		        Email:    "test@example.com",
-		        Password: string(hashedPassword),
-		        Role:     "member",
-		    },
-		    {
-		        Name:     "Admin",
-		        Email:    "admin@example.com",
-		        Password: string(hashedPassword),
-		        Role:     "admin",
-		    },
+		admin := models.User{
+			Name:     "Administrator",
+			Email:    "admin@example.com",
+			Password: string(hashedPassword),
+			Role:     "admin",
+			IsOnline: false,
+		}
+		
+		if err := tx.Create(&admin).Error; err != nil {
+			return err
 		}
 
+		user := models.User{
+			Name:     "Test User",
+			Email:    "test@example.com",
+			Password: string(hashedPassword),
+			Role:     "user",
+			IsOnline: false,
+		}
+		
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
+
+		
 
 		// 2. Seed Workspace
 		workspace := models.Workspace{
