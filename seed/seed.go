@@ -100,6 +100,7 @@ func SeedData(db *gorm.DB) error {
 		taskUser := models.TaskUser{
 			TaskID: task.ID,
 			UserID: user.ID,
+			AssignedAt: time.Now(),
 		}
 		if err := tx.Create(&taskUser).Error; err != nil {
 			return err
