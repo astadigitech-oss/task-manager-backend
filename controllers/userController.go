@@ -2,11 +2,14 @@ package controllers
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"project-management-backend/models"
 	"project-management-backend/services"
 	"project-management-backend/utils"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +20,30 @@ type UserController struct {
 
 func NewUserController(service services.UserService) *UserController {
 	return &UserController{Service: service}
+}
+
+func (uc *UserController) Heartbeat(c *gin.Context) {
+	userCtx, exists := c.Get("currentUser")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
+		return
+	}
+
+	currentUser, ok := userCtx.(*models.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not process user data"})
+		return
+	}
+
+	// Panggil service untuk update last_seen
+	err := uc.Service.UpdateLastSeen(currentUser.ID)
+	if err != nil {
+		log.Printf("ERROR: Failed to update LastSeen for user %d: %v", currentUser.ID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update online status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Heartbeat received"})
 }
 
 func (uc *UserController) GetAllUsers(c *gin.Context) {
@@ -57,14 +84,16 @@ func (uc *UserController) GetAllUsers(c *gin.Context) {
 
 	// Format response
 	users := make([]gin.H, 0)
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	for _, user := range result.Users {
+		isOnline := user.LastSeen != nil && user.LastSeen.After(fiveMinutesAgo)
 		userData := gin.H{
 			"id":            user.ID,
 			"name":          user.Name,
 			"email":         user.Email,
 			"role":          user.Role,
 			"profile_image": user.ProfileImage,
-			"is_online":     user.IsOnline,
+			"is_online":     isOnline,
 			"position":      user.Position,
 			"created_at":    user.CreatedAt.Format("2006-01-02 15:04:05"),
 			"updated_at":    user.UpdatedAt.Format("2006-01-02 15:04:05"),
@@ -129,13 +158,16 @@ func (uc *UserController) GetUserByID(c *gin.Context) {
 		return
 	}
 
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
+	isOnline := user.LastSeen != nil && user.LastSeen.After(fiveMinutesAgo)
+
 	userData := gin.H{
 		"id":            user.ID,
 		"name":          user.Name,
 		"email":         user.Email,
 		"role":          user.Role,
 		"profile_image": user.ProfileImage,
-		"is_online":     user.IsOnline,
+		"is_online":     isOnline,
 		"created_at":    user.CreatedAt.Format("2006-01-02 15:04:05"),
 		"updated_at":    user.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
@@ -304,6 +336,7 @@ func (uc *UserController) GetOnlineUsers(c *gin.Context) {
 	}
 
 	response := []utils.OnlineUserResponse{}
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	for _, user := range users {
 		workspaces := []utils.SimpleWorkspace{}
 		for _, ws := range user.Workspaces {
@@ -320,12 +353,13 @@ func (uc *UserController) GetOnlineUsers(c *gin.Context) {
 			tasks = append(tasks, utils.SimpleTask{ID: taskMember.Task.ID, Title: taskMember.Task.Title})
 		}
 
+		isOnline := user.LastSeen != nil && user.LastSeen.After(fiveMinutesAgo)
 		response = append(response, utils.OnlineUserResponse{
 			ID:         user.ID,
 			Name:       user.Name,
 			Email:      user.Email,
 			Role:       user.Role,
-			IsOnline:   user.IsOnline,
+			IsOnline:   isOnline,
 			LastSeen:   user.LastSeen,
 			Workspaces: workspaces,
 			Projects:   projects,
@@ -350,6 +384,7 @@ func (uc *UserController) GetOnlineWorkspaceMembers(c *gin.Context) {
 	}
 
 	response := []utils.OnlineUserResponse{}
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	for _, user := range users {
 		workspaces := []utils.SimpleWorkspace{}
 		for _, ws := range user.Workspaces {
@@ -366,12 +401,13 @@ func (uc *UserController) GetOnlineWorkspaceMembers(c *gin.Context) {
 			tasks = append(tasks, utils.SimpleTask{ID: taskMember.Task.ID, Title: taskMember.Task.Title})
 		}
 
+		isOnline := user.LastSeen != nil && user.LastSeen.After(fiveMinutesAgo)
 		response = append(response, utils.OnlineUserResponse{
 			ID:         user.ID,
 			Name:       user.Name,
 			Email:      user.Email,
 			Role:       user.Role,
-			IsOnline:   user.IsOnline,
+			IsOnline:   isOnline,
 			LastSeen:   user.LastSeen,
 			Workspaces: workspaces,
 			Projects:   projects,

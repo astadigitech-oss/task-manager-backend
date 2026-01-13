@@ -36,7 +36,6 @@ func SetupRoutes(r *gin.Engine) {
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)
-	webSocketService := services.NewWebSocketService(userRepo, workspaceRepo, projectRepo, taskRepo)
 	dashboardService := services.NewDashboardService(taskRepo)
 	profileService := services.NewProfileService(userRepo)
 
@@ -47,7 +46,6 @@ func SetupRoutes(r *gin.Engine) {
 	projectImageController := controllers.NewProjectImageController(projectImageService)
 	workspaceController := controllers.NewWorkspaceController(workspaceService)
 	userController := controllers.NewUserController(userService)
-	webSocketController := controllers.NewWebSocketController(authService, webSocketService, userService)
 	dashboardController := controllers.NewDashboardController(dashboardService)
 	profileController := controllers.NewProfileController(profileService)
 	exportController := controllers.NewExportController(projectService)
@@ -55,21 +53,12 @@ func SetupRoutes(r *gin.Engine) {
 	authMiddleware := middleware.AuthMiddleware(authService)
 	adminMiddleware := middleware.AdminMiddleware()
 
-	// Jalankan WebSocket Hub
-	go webSocketService.RunHub()
-
 	//public routes
 	auth := r.Group("/auth")
 	{
 		auth.POST("/register", authController.Register)
 		auth.POST("/login", authController.Login)
 		auth.GET("/profile", authMiddleware, authController.GetProfile) // Ini butuh auth
-	}
-
-	// web socket
-	ws := r.Group("/ws")
-	{
-		ws.GET("", webSocketController.ServeWs)
 	}
 
 	//Protected Routes
@@ -113,6 +102,8 @@ func SetupRoutes(r *gin.Engine) {
 		users := api.Group("/users")
 		{
 			users.GET("", userController.GetAllUsers)
+			users.GET("/online-status", userController.GetOnlineUsers)
+			users.POST("/heartbeat", userController.Heartbeat)
 			users.DELETE("/delete/:user_id", adminMiddleware, userController.DeleteUser)
 		}
 

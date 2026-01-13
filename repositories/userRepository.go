@@ -19,7 +19,6 @@ type UserRepository interface {
 	GetUserByID(userID uint) (*models.User, error)
 	SearchUsers(query string) ([]models.User, error)
 	GetUsersWithDetails(userIDs []uint) ([]models.User, error)
-	UpdateUserOnlineStatus(userID uint, isOnline bool) error
 	GetOnlineUsers() ([]models.User, error)
 	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
 	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
@@ -167,28 +166,14 @@ func (r *userRepository) GetUsersWithDetails(userIDs []uint) ([]models.User, err
 	return users, err
 }
 
-func (r *userRepository) UpdateUserOnlineStatus(userID uint, isOnline bool) error {
-	var user models.User
-	if err := config.DB.First(&user, userID).Error; err != nil {
-		return err
-	}
-
-	user.IsOnline = isOnline
-	now := time.Now()
-	if !isOnline {
-		user.LastSeen = &now
-	}
-
-	return config.DB.Save(&user).Error
-}
-
 func (r *userRepository) GetOnlineUsers() ([]models.User, error) {
 	var users []models.User
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	err := config.DB.
 		Preload("Workspaces").
 		Preload("Projects").
 		Preload("Tasks.Task").
-		Where("is_online = ?", true).
+		Where("last_seen > ?", fiveMinutesAgo).
 		Find(&users).Error
 	return users, err
 }
@@ -201,8 +186,9 @@ func (r *userRepository) GetOnlineWorkspaceMembers(workspaceID uint) ([]models.U
 	}
 
 	var onlineUsers []models.User
+	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 	if len(memberIDs) > 0 {
-		err = config.DB.Where("id IN ? AND is_online = ?", memberIDs, true).Find(&onlineUsers).Error
+		err = config.DB.Where("id IN ? AND last_seen > ?", memberIDs, fiveMinutesAgo).Find(&onlineUsers).Error
 	}
 
 	return onlineUsers, err

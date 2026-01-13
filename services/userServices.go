@@ -4,6 +4,7 @@ import (
 	"errors"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"time"
 )
 
 type UserService interface {
@@ -17,6 +18,7 @@ type UserService interface {
 	GetOnlineWorkspaceMembers(workspaceID uint) ([]models.User, error)
 	IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bool, error)
 	DeleteUser(userID uint, currentUser *models.User) error
+	UpdateLastSeen(userID uint) error
 }
 
 type userService struct {
@@ -162,4 +164,17 @@ func (s *userService) IsUserMemberOfWorkspace(userID uint, workspaceID uint) (bo
 
 func (s *userService) DeleteUser(userID uint, currentUser *models.User) error {
 	return s.repo.DeleteUser(userID)
+}
+
+func (s *userService) UpdateLastSeen(userID uint) error {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return err // User not found, or other DB error
+	}
+
+	now := time.Now()
+	user.LastSeen = &now // Assign the address of 'now'
+	user.IsOnline = true
+
+	return s.repo.UpdateUser(user)
 }
