@@ -31,6 +31,7 @@ type TaskRepository interface {
 	GetTasksInProgressSince(projectID uint, since time.Time) ([]models.Task, error)
 	GetTasksDoneSince(projectID uint, since time.Time) ([]models.Task, error)
 	GetTasksStartingBetween(projectID uint, from, to time.Time) ([]models.Task, error)
+	GetTasksOnBoardSince(projectID uint, since time.Time) ([]models.Task, error)
 	GetOnProgressTasksDueBetween(projectID uint, from, to time.Time) ([]models.Task, error)
 }
 
@@ -282,6 +283,13 @@ func (r *taskRepository) GetTasksDoneSince(projectID uint, since time.Time) ([]m
 	var tasks []models.Task
 	db := newBaseTaskQuery(projectID)
 	err := db.Where("tasks.status = 'done' AND tasks.finished_at >= ?", since).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetTasksOnBoardSince(projectID uint, since time.Time) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.status = 'on_board' AND tasks.updated_at >= ?", since).Find(&tasks).Error
 	return tasks, err
 }
 

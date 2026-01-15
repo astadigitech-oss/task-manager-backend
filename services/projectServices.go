@@ -427,12 +427,18 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 		return nil, err
 	}
 
+	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
 		return nil, err
 	}
 
 	tasks := append(inProgressTasks, doneTasks...)
+	tasks = append(tasks, onBoardTasks...)
 	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
@@ -489,12 +495,17 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
+	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneDayAgo)
+	if err != nil {
+		return nil, err
+	}
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
 	if err != nil {
 		return nil, err
 	}
 
 	tasks := append(inProgressTasks, doneTasks...)
+	tasks = append(tasks, onBoardTasks...)
 
 	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
 
@@ -517,7 +528,6 @@ func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, erro
 	oneWeekAgo := now.AddDate(0, 0, -7)
 	oneWeekLater := now.AddDate(0, 0, 7)
 
-	// --- Backward-looking tasks (from ExportWeeklyBackward) ---
 	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
 	if err != nil {
 		return nil, err
@@ -527,11 +537,16 @@ func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, erro
 		return nil, err
 	}
 
-	// --- Forward-looking tasks (from ExportWeeklyForward) ---
 	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekLater)
 	if err != nil {
 		return nil, err
 	}
+
+	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneWeekAgo)
+	if err != nil {
+		return nil, err
+	}
+
 	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneWeekLater)
 	if err != nil {
 		return nil, err
@@ -541,6 +556,7 @@ func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, erro
 	var tasks []models.Task
 	tasks = append(tasks, inProgressTasks...)
 	tasks = append(tasks, doneTasks...)
+	tasks = append(tasks, onBoardTasks...)
 	tasks = append(tasks, startingTasks...)
 	tasks = append(tasks, dueTasks...)
 
@@ -551,9 +567,12 @@ func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, erro
 	oneDayAgo := now.AddDate(0, 0, -1)
 	dailyInProgress, _ := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
 	dailyDone, _ := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
+	dailyOnBoard, _ := s.taskRepo.GetTasksOnBoardSince(projectID, oneDayAgo)
+
 	var dailyTasks []models.Task
 	dailyTasks = append(dailyTasks, dailyInProgress...)
 	dailyTasks = append(dailyTasks, dailyDone...)
+	dailyTasks = append(dailyTasks, dailyOnBoard...)
 	dailyDate := now.Format("Monday, 02-01-2006")
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
