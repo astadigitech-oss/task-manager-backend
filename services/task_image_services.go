@@ -165,13 +165,14 @@ func (s *taskImageService) DeleteTaskImage(imageID uint, workspaceID uint, user 
 		return errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
-	if err != nil || !hasWorkspaceAccess {
-		return errors.New("tidak memiliki akses ke workspace ini")
-	}
-
-	if image.UploadedBy != user.ID {
-		return errors.New("hanya uploader yang boleh menghapus image")
+	if user.Role != "admin" {
+		hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
+		if err != nil || !hasWorkspaceAccess {
+			return errors.New("tidak memiliki akses ke workspace ini")
+		}
+		if image.UploadedBy != user.ID {
+			return errors.New("hanya uploader yang boleh menghapus image")
+		}
 	}
 
 	filePath := "." + image.URL
