@@ -30,11 +30,12 @@ type SimpleTaskResponse struct {
 }
 
 type TaskMemberResponse struct {
-	UserID     uint   `json:"user_id"`
-	UserName   string `json:"user_name"`
-	UserEmail  string `json:"user_email"`
-	RoleInTask string `json:"role_in_task"`
-	AssignedAt string `json:"assigned_at"`
+	UserID           uint   `json:"user_id"`
+	UserName         string `json:"user_name"`
+	UserEmail        string `json:"user_email"`
+	UserProfileImage string `json:"user_profile_image"`
+	RoleInTask       string `json:"role_in_task"`
+	AssignedAt       string `json:"assigned_at"`
 }
 
 type TaskImageResponse struct {
@@ -46,12 +47,17 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 	// Convert members
 	var memberResponses []TaskMemberResponse
 	for _, member := range task.Members {
+		profileImage := ""
+		if member.User.ProfileImage != nil {
+			profileImage = *member.User.ProfileImage
+		}
 		memberResponses = append(memberResponses, TaskMemberResponse{
-			UserID:     member.User.ID,
-			UserName:   member.User.Name,
-			UserEmail:  member.User.Email,
-			RoleInTask: member.RoleInTask,
-			AssignedAt: member.AssignedAt.Format("2006-01-02 15:04:05"),
+			UserID:           member.User.ID,
+			UserName:         member.User.Name,
+			UserEmail:        member.User.Email,
+			UserProfileImage: profileImage,
+			RoleInTask:       member.RoleInTask,
+			AssignedAt:       member.AssignedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
