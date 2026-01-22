@@ -205,7 +205,7 @@ func generateDailyPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []models
 
 		rowData := []string{
 			fmt.Sprintf("%d", i+1),
-			task.StartDate.Format("08.00"),
+			task.StartDate.Format("02/01/2006"),
 			penanggungJawab,
 			project.Name,
 			task.Title,
