@@ -11,7 +11,6 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
-// formatDuration calculates the difference between two times and formats it as "X Hari" or "X Jam"
 func formatDuration(d time.Duration) string {
 	if d <= 0 {
 		return "-"
@@ -29,13 +28,11 @@ func formatDuration(d time.Duration) string {
 }
 
 func GenerateAgendaReport(project *models.Project, agendaTasks []models.Task, dailyTasks []models.Task, pic models.User, period string, date string) (*gofpdf.Fpdf, error) {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := gofpdf.New("L", "mm", "A4", "")
 
-	// Page 1: Agenda Report
 	pdf.AddPage()
 	generateAgendaPage(pdf, project, agendaTasks, pic, period)
 
-	// Page 2: Daily Report
 	pdf.AddPage()
 	generateDailyPage(pdf, project, dailyTasks, pic, date)
 
@@ -46,13 +43,13 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 	// --- HEADER ---
 	// pdf.Image("assets/logo.png", 10, 10, 30, 0, false, "", 0, "")
 	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(190, 6, "LAPORAN AGENDA KERJA MINGGUAN")
+	pdf.Cell(277, 6, "LAPORAN HASIL KERJA HARIAN")
 	pdf.Ln(5)
 
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(190, 6, "Divisi Tim Maintenance dan Development WMS - Liquid8")
+	pdf.Cell(277, 6, "Divisi Tim Maintenance dan Development WMS - Liquid8")
 	pdf.Ln(4)
-	pdf.Cell(190, 6, "www.astadigitalagency | Imogiri Timur, Gg. Tobanan V | D.I.Yogyakarta")
+	pdf.Cell(277, 6, "www.astadigitalagency | Imogiri Timur, Gg. Tobanan V | D.I.Yogyakarta")
 	pdf.Ln(15)
 
 	// --- METADATA ---
@@ -126,15 +123,15 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 	// --- FOOTER ---
 	pdf.Ln(15)
 	pdf.SetFont("Arial", "", 10)
-	today := time.Now().Format("DD-MM-YYYY")
-	pdf.Cell(190, 6, fmt.Sprintf("Yogyakarta, [Hari, %s]", today))
+	today := time.Now().Format("02-01-2006")
+	pdf.Cell(277, 6, fmt.Sprintf("Yogyakarta, %s", today))
 	pdf.Ln(5)
-	pdf.Cell(190, 6, "Disusun oleh,")
+	pdf.Cell(277, 6, "Disusun oleh,")
 	pdf.Ln(5)
-	pdf.Cell(190, 6, "Person In Charge")
+	pdf.Cell(277, 6, "Person In Charge")
 	pdf.Ln(20)
 	pdf.SetFont("Arial", "B", 10)
-	pdf.Cell(190, 6, fmt.Sprintf("%s [admin]", pic.Name))
+	pdf.Cell(277, 6, fmt.Sprintf("%s [admin]", pic.Name))
 }
 
 func generateDailyPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []models.Task, pic models.User, date string) {
@@ -231,13 +228,13 @@ func generateDailyPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []models
 	// --- FOOTER ---
 	pdf.Ln(15)
 	pdf.SetFont("Arial", "", 10)
-	today := time.Now().Format("DD-MM-YYYY")
-	pdf.Cell(190, 6, fmt.Sprintf("Yogyakarta, [Hari, %s]", today))
+	today := time.Now().Format("02-01-2006") // Perbaiki format date
+	pdf.Cell(277, 6, fmt.Sprintf("Yogyakarta, %s", today))
 	pdf.Ln(5)
-	pdf.Cell(190, 6, "Disusun oleh,")
+	pdf.Cell(277, 6, "Disusun oleh,")
 	pdf.Ln(5)
-	pdf.Cell(190, 6, "Person In Charge")
+	pdf.Cell(277, 6, "Person In Charge")
 	pdf.Ln(20)
 	pdf.SetFont("Arial", "B", 10)
-	pdf.Cell(190, 6, fmt.Sprintf("%s [admin]", pic.Name))
+	pdf.Cell(277, 6, fmt.Sprintf("%s [admin]", pic.Name))
 }
