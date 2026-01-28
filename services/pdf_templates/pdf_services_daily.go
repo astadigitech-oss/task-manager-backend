@@ -11,32 +11,25 @@ import (
 )
 
 func GenerateDailyReport(project *models.Project, tasks []models.Task, pic models.User, period string) (*gofpdf.Fpdf, error) {
-	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetMargins(15, 15, 15)
 	pdf.AddPage()
 	pdf.SetFont("Arial", "B", 16)
 
-	// --- HEADER ---
-	// Logo placeholder
-	pdf.SetFont("Arial", "B", 20)
-	pdf.Cell(40, 10, "ASTA DIGITAL")
-	pdf.Ln(8)
-	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(40, 10, "AGENCY")
-	pdf.Ln(10)
-
-	// Main Title
-	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(190, 10, "LAPORAN HASIL KERJA HARIAN")
+	pdf.Image("assets/logo.png", 15, 15, 25, 0, false, "", 0, "")
+	pdf.SetXY(45, 15)
+	pdf.SetFont("Arial", "B", 16)
+	pdf.SetTextColor(0, 0, 0)
+	pdf.Cell(140, 8, "LAPORAN HASIL KERJA HARIAN")
 	pdf.Ln(5)
-
-	// Sub-title
+	pdf.SetX(45)
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(190, 10, "Divisi Tim Maintenance dan Development WMS - Liquid8")
+	pdf.Cell(140, 6, "Divisi Tim Maintenance dan Development WMS - Liquid8")
 	pdf.Ln(4)
-	pdf.Cell(190, 10, "www.astadigitalagency | Imogiri Timur, Gg. Tobanan V | D.I.Yogyakarta")
+	pdf.SetX(45)
+	pdf.Cell(277, 6, "www.astadigitalagency | Imogiri Timur, Gg. Tobanan V | D.I.Yogyakarta")
 	pdf.Ln(15)
 
-	// --- METADATA ---
 	pdf.SetFont("Arial", "", 11)
 	meta := [][]string{
 		{"Judul Lapor", fmt.Sprintf("Laporan Hasil Kerja Tim %s", project.Name)},
@@ -55,22 +48,19 @@ func GenerateDailyReport(project *models.Project, tasks []models.Task, pic model
 	}
 	pdf.Ln(10)
 
-	// --- TABLE HEADER ---
 	pdf.SetFont("Arial", "B", 10)
 	pdf.SetFillColor(240, 240, 240)
 	pdf.SetTextColor(0, 0, 0)
-	headers := []string{"No", "Waktu", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status", "Estimasi"}
-	colWidths := []float64{10, 20, 35, 35, 35, 20, 20, 20}
+	headers := []string{"No", "Jam", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status Terakhir", "Wkt Resolusi (Menit)"}
+	colWidths := []float64{10, 35, 35, 45, 40, 25, 35, 40}
 	for i, header := range headers {
 		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", true, 0, "")
 	}
 	pdf.Ln(-1)
 
-	// --- TABLE ROWS ---
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetFillColor(255, 255, 255)
 	for i, task := range tasks {
-		// Handle multiple members
 		var members []string
 		for _, member := range task.Members {
 			members = append(members, member.User.Name)
@@ -80,7 +70,6 @@ func GenerateDailyReport(project *models.Project, tasks []models.Task, pic model
 			penanggungJawab = "N/A"
 		}
 
-		// Calculate estimation
 		estimasi := formatDuration(task.DueDate.Sub(task.StartDate))
 
 		rowData := []string{
@@ -94,14 +83,11 @@ func GenerateDailyReport(project *models.Project, tasks []models.Task, pic model
 			estimasi,
 		}
 
-		// Add cell for each data point
 		for j, data := range rowData {
 			pdf.CellFormat(colWidths[j], 10, data, "1", 0, "C", false, 0, "")
 		}
 		pdf.Ln(-1)
 	}
-
-	// --- FOOTER ---
 	pdf.Ln(15)
 	pdf.SetFont("Arial", "", 10)
 	today := time.Now().Format("02-01-2006")
