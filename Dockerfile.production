@@ -26,6 +26,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /app/app .
+COPY --from=builder /app/assets ./assets
 
 ENV PORT=8080
 ENV TZ=Asia/Jakarta
