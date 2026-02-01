@@ -61,7 +61,7 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 
 	pdf.SetFont("Arial", "", 11)
 	meta := [][]string{
-		{"Judul Lapor", fmt.Sprintf("Laporan Hasil Kerja Harian Tim %s", project.Name)},
+		{"Judul Laporan", fmt.Sprintf("Laporan Hasil Kerja Harian Tim %s", project.Name)},
 		{"Periode Kerja", period},
 		{"Hari Kerja", "Senin - Sabtu"},
 		{"Divisi", "Maintenance & Development WMS"},
@@ -154,7 +154,7 @@ func generateDailyPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []models
 
 	pdf.SetFont("Arial", "", 11)
 	meta := [][]string{
-		{"Judul Lapor", fmt.Sprintf("Laporan Hasil Kerja Harian Tim %s", project.Name)},
+		{"Judul Laporan", fmt.Sprintf("Laporan Hasil Kerja Harian Tim %s", project.Name)},
 		{"Hari/Tanggal", date},
 		{"Divisi", "Maintenance & Development WMS"},
 		{"PIC", fmt.Sprintf("%s [admin]", pic.Name)},
@@ -197,7 +197,7 @@ func generateDailyPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []models
 		var resolutionTime string
 		if task.FinishedAt != nil && !task.FinishedAt.IsZero() && !task.StartDate.IsZero() {
 			duration := task.FinishedAt.Sub(task.StartDate)
-			resolutionTime = fmt.Sprintf("%.0f", duration.Minutes())
+			resolutionTime = formatDurationEstimasi(duration)
 		} else {
 			resolutionTime = "0"
 		}

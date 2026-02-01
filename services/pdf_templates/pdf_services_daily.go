@@ -31,7 +31,7 @@ func GenerateDailyReport(project *models.Project, items []models.DailyActivityIt
 
 	pdf.SetFont("Arial", "", 11)
 	meta := [][]string{
-		{"Judul Lapor", fmt.Sprintf("Laporan Hasil Kerja Tim %s", project.Name)},
+		{"Judul Laporan", fmt.Sprintf("Laporan Hasil Kerja Tim %s", project.Name)},
 		{"Periode Kerja", period},
 		{"Hari Kerja", "Senin - Sabtu"},
 		{"Divisi", "Maintenance & Development WMS"},
