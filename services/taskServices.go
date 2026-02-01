@@ -133,7 +133,7 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 	}
 
 	if status, ok := updates["status"]; ok {
-		if status == "Done" {
+		if status == "done" {
 			now := time.Now()
 			updates["finished_at"] = &now
 
@@ -143,7 +143,7 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 			} else {
 				updates["overdue_duration"] = time.Duration(0)
 			}
-		} else if existingTask.Status == "Done" && status != "Done" {
+		} else if existingTask.Status == "done" && status != "done" {
 			updates["finished_at"] = nil
 			updates["overdue_duration"] = time.Duration(0)
 		}

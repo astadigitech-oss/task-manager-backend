@@ -19,8 +19,9 @@ type TaskResponse struct {
 	Members         []TaskMemberResponse `json:"members"`
 	Images          []TaskImageResponse  `json:"images"`
 	MemberCount     int                  `json:"member_count"`
-	OverDueDuration int                  `json:"overdue_duration"`
+	OverDueDuration int64                `json:"overdue_duration"`
 	CreatedAt       string               `json:"created_at"`
+	FinishedAt      *time.Time           `json:"finished_at"`
 }
 
 type SimpleTaskResponse struct {
@@ -83,8 +84,9 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 		Members:         memberResponses,
 		Images:          imageResponses,
 		MemberCount:     len(task.Members),
-		OverDueDuration: int(task.OverdueDuration),
+		OverDueDuration: int64(task.OverdueDuration.Seconds()),
 		CreatedAt:       task.CreatedAt.Format("2006-01-02 15:04:05"),
+		FinishedAt:      task.FinishedAt,
 	}
 }
 

@@ -74,7 +74,7 @@ func GenerateDailyReport(project *models.Project, tasks []models.Task, pic model
 
 		rowData := []string{
 			fmt.Sprintf("%d", i+1),
-			task.StartDate.Format("02/01/2006"),
+			task.UpdatedAt.Format("15:04"),
 			penanggungJawab,
 			task.Project.Name,
 			task.Title,
