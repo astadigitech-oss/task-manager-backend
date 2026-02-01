@@ -94,7 +94,7 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 
 		rowData := []string{
 			fmt.Sprintf("%d", i+1),
-			task.StartDate.Format("02/01/2006"),
+			task.StartDate.Format("02-01-2006"),
 			penanggungJawab,
 			task.Project.Name,
 			task.Title,

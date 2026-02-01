@@ -32,7 +32,7 @@ func SetupRoutes(r *gin.Engine) {
 	pdfService := services.NewPDFService()                                                                                   // PDF service harus diinisialisasi
 	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
-	taskService := services.NewTaskService(taskRepo)
+	taskService := services.NewTaskService(taskRepo, activityLogger)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)

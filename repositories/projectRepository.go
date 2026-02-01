@@ -26,12 +26,30 @@ type ProjectRepository interface {
 	IsUserInWorkspace(workspaceID uint, userID uint) (bool, error)
 	RemoveMember(projectID uint, userID uint) error
 	RemoveMembers(projectID uint, userIDs []uint) error
+	GetActivityLogsSince(projectID uint, since time.Time) ([]models.ActivityLog, error)
 }
 
 type projectRepository struct{}
 
 func NewProjectRepository() ProjectRepository {
 	return &projectRepository{}
+}
+
+func (r *projectRepository) GetActivityLogsSince(projectID uint, since time.Time) ([]models.ActivityLog, error) {
+	var activities []models.ActivityLog
+	db := config.DB
+
+	var taskIDs []uint
+	if err := db.Model(&models.Task{}).Where("project_id = ?", projectID).Pluck("id", &taskIDs).Error; err != nil {
+		return nil, err
+	}
+
+	if len(taskIDs) == 0 {
+		return []models.ActivityLog{}, nil
+	}
+
+	err := db.Where("table_name = 'tasks' AND item_id IN (?) AND created_at >= ?", taskIDs, since).Find(&activities).Error
+	return activities, err
 }
 
 func (r *projectRepository) CreateProject(project *models.Project) error {

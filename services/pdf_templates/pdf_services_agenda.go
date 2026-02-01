@@ -81,7 +81,7 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 	pdf.SetFillColor(240, 240, 240)
 	pdf.SetTextColor(0, 0, 0)
 	headers := []string{"No", "Waktu", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status", "Estimasi"}
-	colWidths := []float64{10, 35, 35, 45, 40, 25, 25, 25}
+	colWidths := []float64{10, 35, 35, 45, 45, 25, 35, 40}
 	for i, header := range headers {
 		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", true, 0, "")
 	}

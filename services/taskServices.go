@@ -2,9 +2,12 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"project-management-backend/config"
 	"project-management-backend/models"
 	"project-management-backend/repositories"
+	"project-management-backend/utils"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,11 +25,16 @@ type TaskService interface {
 	DeleteMember(taskID uint, projectID uint, workspaceID uint, userID uint, currentUser *models.User) error
 }
 type taskService struct {
-	repo repositories.TaskRepository
+	repo           repositories.TaskRepository
+	activityLogger utils.ActivityLogger
 }
 
-func NewTaskService(repo repositories.TaskRepository) TaskService {
-	return &taskService{repo: repo}
+func NewTaskService(repo repositories.TaskRepository, activityLogger utils.ActivityLogger) TaskService {
+	return &taskService{
+		repo:           repo,
+		activityLogger: activityLogger,
+	}
+
 }
 
 func (s *taskService) CreateTask(task *models.Task, workspaceID uint, user *models.User) error {
@@ -42,7 +50,17 @@ func (s *taskService) CreateTask(task *models.Task, workspaceID uint, user *mode
 		task.Priority = "Normal"
 	}
 
-	return s.repo.CreateTask(task)
+	err = s.repo.CreateTask(task)
+	if err == nil {
+		activity := models.ActivityLog{
+			UserID:    user.ID,
+			Action:    fmt.Sprintf("User created task '%s' with status '%s'", task.Title, task.Status),
+			TableName: "tasks",
+			ItemID:    task.ID,
+		}
+		s.activityLogger.Log(activity)
+	}
+	return err
 }
 
 func (s *taskService) GetAllTasks(projectID uint, workspaceID uint, user *models.User) ([]models.Task, error) {
@@ -95,61 +113,73 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 		return errors.New("task tidak ditemukan di workspace ini")
 	}
 
-	if user.Role != "admin" {
-		if existingTask.Project.WorkspaceID != workspaceID {
-			return errors.New("task tidak ditemukan di workspace ini")
-		}
+	finalUpdates := updates
+	isProjectAdminOrAdmin := user.Role == "admin"
 
+	if !isProjectAdminOrAdmin {
 		isPAdmin, err := s.isProjectAdmin(existingTask.ProjectID, user.ID)
 		if err != nil {
 			return errors.New("gagal memvalidasi admin project")
 		}
-
-		if !isPAdmin {
-			isMember, err := s.repo.IsUserMember(taskID, user.ID)
-			if err != nil {
-				return errors.New("gagal memvalidasi member task")
-			}
-
-			if !isMember {
-				return errors.New("anda bukan member dari task ini, tidak bisa mengupdate")
-			}
-
-			allowedUpdates := make(map[string]interface{})
-			for key, value := range updates {
-				if key == "status" || key == "notes" {
-					allowedUpdates[key] = value
-				} else {
-					return errors.New("anda hanya diizinkan untuk mengupdate status dan notes")
-				}
-			}
-
-			if len(allowedUpdates) == 0 {
-				return errors.New("tidak ada field yang diizinkan untuk diupdate")
-			}
-
-			return s.repo.UpdateTask(taskID, allowedUpdates)
-		}
+		isProjectAdminOrAdmin = isPAdmin
 	}
 
-	if status, ok := updates["status"]; ok {
-		if status == "done" {
-			now := time.Now()
-			updates["finished_at"] = &now
+	if !isProjectAdminOrAdmin {
+		isMember, err := s.repo.IsUserMember(taskID, user.ID)
+		if err != nil {
+			return errors.New("gagal memvalidasi member task")
+		}
+		if !isMember {
+			return errors.New("anda bukan member dari task ini, tidak bisa mengupdate")
+		}
 
-			if now.After(existingTask.DueDate) {
-				duration := now.Sub(existingTask.DueDate)
-				updates["overdue_duration"] = duration
+		allowedUpdates := make(map[string]interface{})
+		for key, value := range updates {
+			if key == "status" || key == "notes" {
+				allowedUpdates[key] = value
 			} else {
-				updates["overdue_duration"] = time.Duration(0)
+				return errors.New("anda hanya diizinkan untuk mengupdate status dan notes")
 			}
-		} else if existingTask.Status == "done" && status != "done" {
-			updates["finished_at"] = nil
-			updates["overdue_duration"] = time.Duration(0)
+		}
+		finalUpdates = allowedUpdates
+	}
+
+	if len(finalUpdates) == 0 {
+		return errors.New("tidak ada field yang diizinkan untuk diupdate")
+	}
+
+	if newStatus, ok := finalUpdates["status"].(string); ok && newStatus != existingTask.Status {
+		activity := models.ActivityLog{
+			UserID:    user.ID,
+			Action:    fmt.Sprintf("User changed status of task '%s' from '%s' to '%s'", existingTask.Title, existingTask.Status, newStatus),
+			TableName: "tasks",
+			ItemID:    taskID,
+		}
+		s.activityLogger.Log(activity)
+	}
+
+	if status, ok := finalUpdates["status"]; ok {
+		if statusStr, isString := status.(string); isString {
+			if strings.ToLower(statusStr) == "done" {
+				if existingTask.Status != "done" {
+					now := time.Now()
+					finalUpdates["finished_at"] = &now
+
+					if now.After(existingTask.DueDate) {
+						duration := now.Sub(existingTask.DueDate)
+						finalUpdates["overdue_duration"] = duration
+					} else {
+						finalUpdates["overdue_duration"] = time.Duration(0)
+					}
+				}
+			} else if existingTask.Status == "done" && strings.ToLower(statusStr) != "done" {
+				finalUpdates["finished_at"] = nil
+				finalUpdates["overdue_duration"] = time.Duration(0)
+			}
 		}
 	}
 
-	return s.repo.UpdateTask(taskID, updates)
+	return s.repo.UpdateTask(taskID, finalUpdates)
 }
 
 func (s *taskService) SoftDeleteTask(taskID uint, workspaceID uint, user *models.User) error {

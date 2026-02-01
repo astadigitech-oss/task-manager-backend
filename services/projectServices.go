@@ -9,6 +9,7 @@ import (
 	"project-management-backend/models"
 	"project-management-backend/repositories"
 	"project-management-backend/utils"
+	"regexp"
 
 	"time"
 
@@ -27,8 +28,6 @@ type ProjectService interface {
 	GetMembers(projectID uint, user *models.User) ([]models.ProjectUser, error)
 	RemoveMember(projectID uint, userID uint, currentUser *models.User) error
 	RemoveMembers(projectID uint, userIDs []uint, currentUser *models.User) error
-	// ExportProject(projectID uint, userID uint, filter string) ([]byte, error)
-
 	ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error)
 	ExportWeeklyForward(projectID uint, userID uint) ([]byte, error)
 	ExportDaily(projectID uint, userID uint) ([]byte, error)
@@ -396,22 +395,48 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	now := time.Now()
 	oneDayAgo := now.AddDate(0, 0, -1)
 
-	// Backward-looking tasks
-	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
-	if err != nil {
-		return nil, err
-	}
-	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneDayAgo)
-	if err != nil {
-		return nil, err
-	}
-	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
+	activities, err := s.repo.GetActivityLogsSince(projectID, oneDayAgo)
 	if err != nil {
 		return nil, err
 	}
 
-	tasks := append(inProgressTasks, doneTasks...)
-	tasks = append(tasks, onBoardTasks...)
+	var dailyItems []models.DailyActivityItem
+	statusChangeRegex := regexp.MustCompile(`changed status of task '.*' from '(.*)' to '(.*)'`)
+
+	// var tasks []models.Task
+	// for _, activity := range activities {
+	// 	task, err := s.taskRepo.GetByID(activity.ItemID)
+	// 	if err == nil {
+	// 		tasks = append(tasks, *task)
+	// 	}
+	// }
+
+	for _, activity := range activities {
+		matches := statusChangeRegex.FindStringSubmatch(activity.Action)
+		if len(matches) == 3 {
+			task, err := s.taskRepo.GetByID(activity.ItemID)
+			if err != nil {
+				continue
+			}
+
+			user, err := s.userRepo.GetUserByID(activity.UserID)
+			if err != nil {
+				continue
+			}
+
+			// Log a single, combined state change.
+			newStatus := matches[2]
+			dailyItems = append(dailyItems, models.DailyActivityItem{
+				ActivityTime: activity.CreatedAt,
+				User:         user.Name,
+				ProjectTitle: task.Project.Name,
+				TaskTitle:    task.Title,
+				TaskPriority: task.Priority,
+				StatusAtLog:  newStatus,
+				Overdue:      task.OverdueDuration,
+			})
+		}
+	}
 
 	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
 
@@ -420,7 +445,7 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateDailyReportPDF(project, tasks, *pic, period)
+	pdf, err := s.pdfService.GenerateDailyReportPDF(project, dailyItems, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
