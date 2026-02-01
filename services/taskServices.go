@@ -160,23 +160,25 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 
 	if status, ok := finalUpdates["status"]; ok {
 		if statusStr, isString := status.(string); isString {
-			if strings.ToLower(statusStr) == "done" {
-				if existingTask.Status != "done" {
+			newStatusLower := strings.ToLower(statusStr)
+			oldStatusLower := strings.ToLower(existingTask.Status)
+
+			if newStatusLower == "done" {
+				if oldStatusLower != "done" {
 					now := time.Now()
 					finalUpdates["finished_at"] = &now
-
-					if now.After(existingTask.DueDate) {
-						duration := now.Sub(existingTask.DueDate)
-						finalUpdates["overdue_duration"] = duration
-					} else {
-						finalUpdates["overdue_duration"] = time.Duration(0)
-					}
 				}
-			} else if existingTask.Status == "done" && strings.ToLower(statusStr) != "done" {
+			} else if oldStatusLower == "done" && newStatusLower != "done" {
 				finalUpdates["finished_at"] = nil
-				finalUpdates["overdue_duration"] = time.Duration(0)
 			}
 		}
+	}
+
+	if time.Now().After(existingTask.DueDate) {
+		duration := time.Since(existingTask.DueDate)
+		finalUpdates["overdue_duration"] = duration
+	} else {
+		finalUpdates["overdue_duration"] = time.Duration(0)
 	}
 
 	return s.repo.UpdateTask(taskID, finalUpdates)
