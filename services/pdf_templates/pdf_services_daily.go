@@ -50,7 +50,7 @@ func GenerateDailyReport(project *models.Project, items []models.DailyActivityIt
 	pdf.SetFont("Arial", "B", 10)
 	pdf.SetFillColor(240, 240, 240)
 	pdf.SetTextColor(0, 0, 0)
-	headers := []string{"No", "Jam", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status Terakhir", "Wkt Resolusi (Menit)"}
+	headers := []string{"No", "Terakhir Diperbarui", "Penanggung Jawab", "Agenda", "Sub-Agenda", "Kondisi", "Status Terakhir", "Wkt Resolusi (Menit)"}
 	colWidths := []float64{10, 35, 35, 45, 45, 25, 35, 40}
 	for i, header := range headers {
 		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", true, 0, "")
@@ -61,7 +61,6 @@ func GenerateDailyReport(project *models.Project, items []models.DailyActivityIt
 	pdf.SetFillColor(255, 255, 255)
 
 	for i, item := range items {
-		// Kirim 'i' sebagai argumen tambahan ke tableRow
 		tableRow(pdf, item, i)
 	}
 
@@ -111,7 +110,7 @@ func GenerateDailyReport(project *models.Project, items []models.DailyActivityIt
 func tableRow(pdf *gofpdf.Fpdf, item models.DailyActivityItem, index int) {
 	pdf.SetFont("Arial", "", 10)
 	pdf.CellFormat(10, 10, fmt.Sprintf("%d", index+1), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(35, 10, item.ActivityTime.Format("15:04"), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(35, 10, item.ActivityTime.Format("16/01/2006 15:04"), "1", 0, "C", false, 0, "")
 	pdf.CellFormat(35, 10, item.User, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(45, 10, item.ProjectTitle, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(45, 10, item.TaskTitle, "1", 0, "L", false, 0, "")
