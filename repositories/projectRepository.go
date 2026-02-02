@@ -27,6 +27,7 @@ type ProjectRepository interface {
 	RemoveMember(projectID uint, userID uint) error
 	RemoveMembers(projectID uint, userIDs []uint) error
 	GetActivityLogsSince(projectID uint, since time.Time) ([]models.ActivityLog, error)
+	GetActivityLogsBetween(projectID uint, start time.Time, end time.Time) ([]models.ActivityLog, error)
 }
 
 type projectRepository struct{}
@@ -49,6 +50,26 @@ func (r *projectRepository) GetActivityLogsSince(projectID uint, since time.Time
 	}
 
 	err := db.Where("table_name = 'tasks' AND item_id IN (?) AND created_at >= ?", taskIDs, since).Find(&activities).Error
+	return activities, err
+}
+
+func (r *projectRepository) GetActivityLogsBetween(projectID uint, start time.Time, end time.Time) ([]models.ActivityLog, error) {
+	var activities []models.ActivityLog
+	db := config.DB
+
+	// 1. Find all task IDs within the project.
+	var taskIDs []uint
+	if err := db.Model(&models.Task{}).Where("project_id = ?", projectID).Pluck("id", &taskIDs).Error; err != nil {
+		return nil, err
+	}
+
+	// If there are no tasks in the project, there's no activity to report.
+	if len(taskIDs) == 0 {
+		return []models.ActivityLog{}, nil
+	}
+
+	// 2. Find activities for those task IDs within the time frame.
+	err := db.Where("table_name = 'tasks' AND item_id IN (?) AND created_at BETWEEN ? AND ?", taskIDs, start, end).Find(&activities).Error
 	return activities, err
 }
 

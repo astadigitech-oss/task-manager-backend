@@ -393,15 +393,14 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 // Export 3: Daily Report
 func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
-	oneDayAgo := now.AddDate(0, 0, -1)
+	year, month, day := now.Date()
+	startOfDay := time.Date(year, month, day, 0, 0, 0, 0, now.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
 
-	activities, err := s.repo.GetActivityLogsSince(projectID, oneDayAgo)
+	activities, err := s.repo.GetActivityLogsBetween(projectID, startOfDay, endOfDay)
 	if err != nil {
 		return nil, err
 	}
-
-	var dailyItems []models.DailyActivityItem
-	statusChangeRegex := regexp.MustCompile(`changed status of task '.*' from '(.*)' to '(.*)'`)
 
 	// var tasks []models.Task
 	// for _, activity := range activities {
@@ -410,6 +409,8 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	// 		tasks = append(tasks, *task)
 	// 	}
 	// }
+	var dailyItems []models.DailyActivityItem
+	statusChangeRegex := regexp.MustCompile(`changed status of task '.*' from '(.*)' to '(.*)'`)
 
 	for _, activity := range activities {
 		matches := statusChangeRegex.FindStringSubmatch(activity.Action)
@@ -429,7 +430,6 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 			dailyItems = append(dailyItems, models.DailyActivityItem{
 				ActivityTime: activity.CreatedAt,
 				User:         user.Name,
-				ProjectTitle: task.Project.Name,
 				TaskTitle:    task.Title,
 				TaskPriority: task.Priority,
 				StatusAtLog:  newStatus,
