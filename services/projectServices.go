@@ -402,6 +402,11 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 		return nil, err
 	}
 
+	project, pic, err := s.getProjectAndPIC(projectID, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// var tasks []models.Task
 	// for _, activity := range activities {
 	// 	task, err := s.taskRepo.GetByID(activity.ItemID)
@@ -430,6 +435,7 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 			dailyItems = append(dailyItems, models.DailyActivityItem{
 				ActivityTime: activity.CreatedAt,
 				User:         user.Name,
+				ProjectTitle: project.Name,
 				TaskTitle:    task.Title,
 				TaskPriority: task.Priority,
 				StatusAtLog:  newStatus,
@@ -439,11 +445,6 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	}
 
 	period := fmt.Sprintf("Daily Report - %s", now.Format("02 Jan 2006"))
-
-	project, pic, err := s.getProjectAndPIC(projectID, userID)
-	if err != nil {
-		return nil, err
-	}
 
 	pdf, err := s.pdfService.GenerateDailyReportPDF(project, dailyItems, *pic, period)
 	if err != nil {

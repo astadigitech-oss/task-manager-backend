@@ -109,7 +109,7 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 
 		rowData := []string{
 			fmt.Sprintf("%d", i+1),
-			task.StartDate.Format("02-01-2006"),
+			task.StartDate.Format("01-01-2006"),
 			penanggungJawab,
 			project.Name,
 			task.Title,

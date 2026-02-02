@@ -110,7 +110,7 @@ func GenerateDailyReport(project *models.Project, items []models.DailyActivityIt
 func tableRow(pdf *gofpdf.Fpdf, item models.DailyActivityItem, index int) {
 	pdf.SetFont("Arial", "", 10)
 	pdf.CellFormat(10, 10, fmt.Sprintf("%d", index+1), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(35, 10, item.ActivityTime.Format("16/01/2006 15:04"), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(35, 10, item.ActivityTime.Format("2006/01/02 15:04"), "1", 0, "C", false, 0, "")
 	pdf.CellFormat(35, 10, item.User, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(45, 10, item.ProjectTitle, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(45, 10, item.TaskTitle, "1", 0, "L", false, 0, "")
