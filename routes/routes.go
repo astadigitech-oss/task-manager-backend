@@ -20,6 +20,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	//repositories
 	taskImageRepo := repositories.NewTaskImageRepository()
+	taskFileRepo := repositories.NewTaskFileRepository(config.DB)
 	taskRepo := repositories.NewTaskRepository()
 	projectRepo := repositories.NewProjectRepository()
 	projectImageRepo := repositories.NewProjectImageRepository()
@@ -32,6 +33,7 @@ func SetupRoutes(r *gin.Engine) {
 	pdfService := services.NewPDFService()                                                                                   // PDF service harus diinisialisasi
 	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
+	taskFileService := services.NewTaskFileService(taskFileRepo)
 	taskService := services.NewTaskService(taskRepo, activityLogger)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
@@ -42,6 +44,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	//controllers
 	taskImageController := controllers.NewTaskImageController(taskImageService)
+	taskFileController := controllers.NewTaskFileController(taskFileService)
 	taskController := controllers.NewTaskController(taskService)
 	projectController := controllers.NewProjectController(projectService)
 	projectImageController := controllers.NewProjectImageController(projectImageService)
@@ -175,6 +178,16 @@ func SetupRoutes(r *gin.Engine) {
 					images.GET("", taskImageController.GetTaskImages)
 					images.POST("", taskImageController.UploadTaskImage)
 					images.DELETE("/:image_id", taskImageController.DeleteTaskImage)
+				}
+
+				// Task Files
+				files := task.Group("/files")
+				{
+					files.GET("", adminMiddleware, taskFileController.ListFiles)
+					files.POST("", adminMiddleware, taskFileController.UploadFile)
+					files.GET("/:fileId/view", adminMiddleware, taskFileController.ViewFile)
+					files.GET("/:fileId/download", adminMiddleware, taskFileController.DownloadFile)
+					files.DELETE("/:fileId", adminMiddleware, taskFileController.DeleteFile)
 				}
 			}
 		}
