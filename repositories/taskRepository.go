@@ -53,6 +53,7 @@ func (r *taskRepository) GetAllTasks(projectID uint) ([]models.Task, error) {
 		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", projectID).
 		Preload("Members.User").
 		Preload("Images").
+		Preload("Files").
 		Preload("Project").
 		Find(&tasks).Error
 	return tasks, err
@@ -67,6 +68,7 @@ func (r *taskRepository) GetAllTasksByUserID(userID uint) ([]models.Task, error)
 		Where("task_users.user_id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", userID).
 		Preload("Members.User").
 		Preload("Images").
+		Preload("Files").
 		Preload("Project").
 		Find(&tasks).Error
 	return tasks, err
@@ -80,6 +82,7 @@ func (r *taskRepository) GetAllTasksForAdmin() ([]models.Task, error) {
 		Where("tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL").
 		Preload("Members.User").
 		Preload("Images").
+		Preload("Files").
 		Preload("Project").
 		Find(&tasks).Error
 	return tasks, err
@@ -94,6 +97,7 @@ func (r *taskRepository) GetTasksByUserID(projectID uint, userID uint) ([]models
 		Where("tasks.id IN (SELECT task_id FROM task_users WHERE user_id = ?)", userID).
 		Preload("Members.User").
 		Preload("Images").
+		Preload("Files").
 		Preload("Project").
 		Find(&tasks).Error
 	return tasks, err
@@ -119,6 +123,7 @@ func (r *taskRepository) GetByID(taskID uint) (*models.Task, error) {
 		Where("tasks.id = ? AND tasks.deleted_at IS NULL AND projects.deleted_at IS NULL AND workspaces.deleted_at IS NULL", taskID).
 		Preload("Members.User").
 		Preload("Images").
+		Preload("Files").
 		Preload("Project").
 		Preload("Project.Workspace").
 		First(&task).Error

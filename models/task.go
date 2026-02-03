@@ -22,6 +22,7 @@ type Task struct {
 	Project   Project        `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"project"`
 	Members   []TaskUser     `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"members"`
 	Images    []TaskImage    `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"images"`
+	Files     []TaskFile     `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"files"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"` // Soft delete

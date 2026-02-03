@@ -18,6 +18,18 @@ func NewTaskFileController(taskFileService *services.TaskFileService) *TaskFileC
 }
 
 func (c *TaskFileController) UploadFile(ctx *gin.Context) {
+	workspaceID, err := strconv.ParseUint(ctx.Param("workspace_id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
+		return
+	}
+
+	projectID, err := strconv.ParseUint(ctx.Param("project_id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
 	taskID, err := strconv.ParseUint(ctx.Param("task_id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
@@ -29,7 +41,7 @@ func (c *TaskFileController) UploadFile(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No file uploaded"})
 		return
 	}
-	taskFile, err := c.taskFileService.UploadFile(uint(taskID), currentUser.ID, file)
+	taskFile, err := c.taskFileService.UploadFile(uint(workspaceID), uint(projectID), uint(taskID), currentUser.ID, file)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file"})
 		return
@@ -39,13 +51,24 @@ func (c *TaskFileController) UploadFile(ctx *gin.Context) {
 }
 
 func (c *TaskFileController) ListFiles(ctx *gin.Context) {
+	workspaceID, err := strconv.ParseUint(ctx.Param("workspace_id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid workspace ID"})
+		return
+	}
+
+	projectID, err := strconv.ParseUint(ctx.Param("project_id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
 	taskID, err := strconv.ParseUint(ctx.Param("task_id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
 
-	files, err := c.taskFileService.GetFilesByTaskID(uint(taskID))
+	files, err := c.taskFileService.GetFilesByTaskID(uint(taskID), uint(projectID), uint(workspaceID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch files"})
 		return
@@ -73,18 +96,7 @@ func (c *TaskFileController) DownloadFile(ctx *gin.Context) {
 	}
 
 	ctx.Header("Content-Disposition", "attachment; filename=\""+filename+"\"")
-	ctx.Header("Content-Type", mimeType)
-	ctx.Header("Content-Length", strconv.Itoa(len(fileData)))
-
-	ctx.JSON(200, APIResponse{
-		Success: true,
-		Code:    200,
-		Message: "File berhasil diunduh",
-		Data: gin.H{
-			"filename":  filename,
-			"mime_type": mimeType,
-		},
-	})
+	ctx.Data(http.StatusOK, mimeType, fileData)
 }
 
 func (c *TaskFileController) ViewFile(ctx *gin.Context) {
@@ -101,18 +113,7 @@ func (c *TaskFileController) ViewFile(ctx *gin.Context) {
 	}
 
 	ctx.Header("Content-Disposition", "inline")
-	ctx.Header("Content-Type", mimeType)
-	ctx.Header("Content-Length", strconv.Itoa(len(fileData)))
-
-	ctx.JSON(200, APIResponse{
-		Success: true,
-		Code:    200,
-		Message: "File berhasil ditampilkan",
-		Data: gin.H{
-			"filedata":  fileData,
-			"mime_type": mimeType,
-		},
-	})
+	ctx.Data(http.StatusOK, mimeType, fileData)
 }
 
 func (c *TaskFileController) DeleteFile(ctx *gin.Context) {

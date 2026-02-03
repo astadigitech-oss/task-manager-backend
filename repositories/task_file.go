@@ -20,10 +20,9 @@ func (r *TaskFileRepository) Create(taskFile *models.TaskFile) error {
 
 func (r *TaskFileRepository) FindByTaskID(taskID uint) ([]models.TaskFile, error) {
 	var taskFiles []models.TaskFile
-	// IMPORTANT: Don't load FileData when listing files (for performance)
-	err := r.DB.Select("id", "task_id", "filename", "mime_type", "file_size", "uploaded_by", "created_at").
+	err := r.DB.Select("id", "task_id", "filename", "url", "mime_type", "file_size", "uploaded_by", "created_at").
 		Preload("User", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "email") // Only select needed user fields
+			return db.Select("id", "name", "email")
 		}).
 		Where("task_id = ?", taskID).
 		Find(&taskFiles).Error
@@ -34,13 +33,6 @@ func (r *TaskFileRepository) FindByID(id uint) (*models.TaskFile, error) {
 	var taskFile models.TaskFile
 	err := r.DB.First(&taskFile, id).Error
 	return &taskFile, err
-}
-
-func (r *TaskFileRepository) GetFileData(id uint) ([]byte, string, error) {
-	var taskFile models.TaskFile
-	err := r.DB.Select("file_data", "mime_type", "filename").
-		First(&taskFile, id).Error
-	return taskFile.FileData, taskFile.MimeType, err
 }
 
 func (r *TaskFileRepository) Delete(taskFile *models.TaskFile) error {

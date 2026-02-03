@@ -18,6 +18,7 @@ type TaskResponse struct {
 	ProjectID       uint                 `json:"project_id"`
 	Members         []TaskMemberResponse `json:"members"`
 	Images          []TaskImageResponse  `json:"images"`
+	Files           []TaskFileResponse   `json:"files"`
 	MemberCount     int                  `json:"member_count"`
 	OverDueDuration int64                `json:"overdue_duration"`
 	CreatedAt       string               `json:"created_at"`
@@ -42,6 +43,14 @@ type TaskMemberResponse struct {
 type TaskImageResponse struct {
 	ID  uint   `json:"id"`
 	URL string `json:"url"`
+}
+
+type TaskFileResponse struct {
+	ID       uint   `json:"id"`
+	URL      string `json:"url"`
+	FileName string `json:"filename"`
+	MimeType string `json:"mime_type"`
+	FileSize int64  `json:"file_size"`
 }
 
 func ToTaskResponse(task *models.Task) TaskResponse {
@@ -71,6 +80,17 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 		})
 	}
 
+	var fileResponses []TaskFileResponse
+	for _, file := range task.Files {
+		fileResponses = append(fileResponses, TaskFileResponse{
+			ID:       file.ID,
+			URL:      file.URL,
+			FileName: file.FileName,
+			MimeType: file.MimeType,
+			FileSize: file.FileSize,
+		})
+	}
+
 	return TaskResponse{
 		ID:              task.ID,
 		Title:           task.Title,
@@ -83,7 +103,7 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 		ProjectID:       task.ProjectID,
 		Members:         memberResponses,
 		Images:          imageResponses,
-		MemberCount:     len(task.Members),
+		Files:           fileResponses,
 		OverDueDuration: int64(task.OverdueDuration.Seconds()),
 		CreatedAt:       task.CreatedAt.Format("2006-01-02 15:04:05"),
 		FinishedAt:      task.FinishedAt,

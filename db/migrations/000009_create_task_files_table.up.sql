@@ -1,4 +1,3 @@
--- db/migrations/000X_create_task_files_table.up.sql
 SET FOREIGN_KEY_CHECKS = 0;
 
 CREATE TABLE IF NOT EXISTS `task_files` (
