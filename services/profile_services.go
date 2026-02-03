@@ -20,6 +20,15 @@ type ProfileService struct {
 func NewProfileService(userRepo repositories.UserRepository) *ProfileService {
 	return &ProfileService{UserRepo: userRepo}
 }
+
+func (s *ProfileService) GetProfile(userID uint) (*models.User, error) {
+	user, err := s.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (s *ProfileService) UpdateProfile(c *gin.Context) {
 	user, exists := c.Get("currentUser")
 	if !exists {

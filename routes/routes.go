@@ -80,6 +80,7 @@ func SetupRoutes(r *gin.Engine) {
 	api.Use(authMiddleware)
 	{
 		//Profile
+		api.GET("/profile", profileController.ListProfile)
 		api.PUT("/profile", profileController.UpdateProfile)
 		api.DELETE("/profile/image", profileController.DeleteProfileImage)
 
