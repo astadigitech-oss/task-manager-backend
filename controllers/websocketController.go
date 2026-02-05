@@ -42,14 +42,6 @@ func (wsc *WebSocketController) ServeWs(c *gin.Context) {
 	token := c.Query("token")
 	workspaceIDStr := c.Query("workspace_id")
 
-	workspaceID, err := strconv.ParseUint(workspaceIDStr, 10, 64)
-	if err != nil {
-		msg := websocket.FormatCloseMessage(websocket.CloseInvalidFramePayloadData, "Invalid workspace ID format")
-		conn.WriteMessage(websocket.CloseMessage, msg)
-		conn.Close()
-		return
-	}
-
 	user, err := wsc.AuthService.GetUserFromToken(token)
 	if err != nil {
 		msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Invalid or expired token")
@@ -58,13 +50,37 @@ func (wsc *WebSocketController) ServeWs(c *gin.Context) {
 		return
 	}
 
-	isMember, err := wsc.UserService.IsUserMemberOfWorkspace(user.ID, uint(workspaceID))
-	if err != nil || !isMember {
-		msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Access Denied: Not a workspace member")
-		conn.WriteMessage(websocket.CloseMessage, msg)
-		conn.Close()
-		return
+	if user.Role != "admin" {
+		workspaceID, err := strconv.ParseUint(workspaceIDStr, 10, 64)
+		if err != nil {
+			msg := websocket.FormatCloseMessage(websocket.CloseInvalidFramePayloadData, "Invalid workspace ID format")
+			conn.WriteMessage(websocket.CloseMessage, msg)
+			conn.Close()
+			return
+		}
+
+		isMember, err := wsc.UserService.IsUserMemberOfWorkspace(user.ID, uint(workspaceID))
+		if err != nil || !isMember {
+			msg := websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "Access Denied: Not a workspace member")
+			conn.WriteMessage(websocket.CloseMessage, msg)
+			conn.Close()
+			return
+		}
+
+		wsc.WebSocketService.RegisterAndServeClient(conn, user.ID, uint(workspaceID))
+	} else {
+		var workspaceID uint64 = 0
+		if workspaceIDStr != "" {
+			parsedWorkspaceID, err := strconv.ParseUint(workspaceIDStr, 10, 64)
+			if err != nil {
+				msg := websocket.FormatCloseMessage(websocket.CloseInvalidFramePayloadData, "Invalid workspace ID format")
+				conn.WriteMessage(websocket.CloseMessage, msg)
+				conn.Close()
+				return
+			}
+			workspaceID = parsedWorkspaceID
+		}
+		wsc.WebSocketService.RegisterAndServeClient(conn, user.ID, uint(workspaceID))
 	}
 
-	wsc.WebSocketService.RegisterAndServeClient(conn, user.ID, uint(workspaceID))
 }
