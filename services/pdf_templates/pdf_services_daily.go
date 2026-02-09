@@ -30,7 +30,7 @@ func GenerateDailyReport(
 
 	pdf.SetX(45)
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(140, 6, fmt.Sprintf("%s - Liquid8", project.Workspace.Name))
+	pdf.Cell(140, 6, fmt.Sprintf("Divisi - %s - Liquid8", project.Workspace.Name))
 	pdf.Ln(4)
 
 	pdf.SetX(45)
