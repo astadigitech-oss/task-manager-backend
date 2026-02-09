@@ -85,7 +85,7 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 
 	pdf.SetX(45)
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(140, 6, "Divisi Tim Maintenance dan Development WMS - Liquid8")
+	pdf.Cell(140, 6, fmt.Sprintf("%s - Liquid8", project.Workspace.Name))
 	pdf.Ln(4)
 
 	pdf.SetX(45)
@@ -97,7 +97,7 @@ func GenerateWeeklyReport(project *models.Project, tasks []models.Task, pic mode
 		{"Judul Laporan", fmt.Sprintf("Laporan Hasil Kerja Tim %s", project.Name)},
 		{"Periode Kerja", period},
 		{"Hari Kerja", "Senin - Sabtu"},
-		{"Divisi", "Maintenance & Development WMS"},
+		{"Divisi", project.Workspace.Name},
 		{"PIC", fmt.Sprintf("%s [%s]", pic.Name, pic.Role)},
 	}
 	for _, item := range meta {

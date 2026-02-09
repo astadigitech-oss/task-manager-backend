@@ -100,7 +100,7 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 
 	pdf.SetX(45)
 	pdf.SetFont("Arial", "", 10)
-	pdf.Cell(140, 6, "Divisi Tim Maintenance dan Development WMS - Liquid8")
+	pdf.Cell(140, 6, fmt.Sprintf("%s - Liquid8", project.Workspace.Name))
 	pdf.Ln(4)
 
 	pdf.SetX(45)
@@ -112,7 +112,7 @@ func generateAgendaPage(pdf *gofpdf.Fpdf, project *models.Project, tasks []model
 		{"Judul Laporan", fmt.Sprintf("Laporan Agenda Kerja Mingguan Tim %s", project.Name)},
 		{"Periode Kerja", period},
 		{"Hari Kerja", "Senin - Sabtu"},
-		{"Divisi", "Maintenance & Development WMS"},
+		{"Divisi", project.Workspace.Name},
 		{"PIC", fmt.Sprintf("%s [admin]", pic.Name)},
 	}
 	for _, item := range meta {
