@@ -1,0 +1,22 @@
+CREATE TABLE `attendances` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `workspace_id` bigint(20) unsigned DEFAULT NULL,
+  `user_id` bigint(20) unsigned DEFAULT NULL,
+  `project_id` bigint(20) unsigned DEFAULT NULL,
+  `activity` text,
+  `obstacle` text,
+  `clock_in` datetime(3) DEFAULT NULL,
+  `clock_out` datetime(3) DEFAULT NULL,
+  `created_at` datetime(3) DEFAULT NULL,
+  `updated_at` datetime(3) DEFAULT NULL,
+  `deleted_at` datetime(3) DEFAULT NULL,
+  `clock_in_date` date GENERATED ALWAYS AS (cast(`clock_in` as date)) STORED,
+  PRIMARY KEY (`id`),
+  KEY `fk_attendances_workspace` (`workspace_id`),
+  KEY `fk_attendances_user` (`user_id`),
+  KEY `fk_attendances_project` (`project_id`),
+  UNIQUE KEY `one_attendance_per_day` (`user_id`, `clock_in_date`),
+  CONSTRAINT `fk_attendances_project` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`),
+  CONSTRAINT `fk_attendances_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_attendances_workspace` FOREIGN KEY (`workspace_id`) REFERENCES `workspaces` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4;

@@ -407,13 +407,6 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 		return nil, err
 	}
 
-	// var tasks []models.Task
-	// for _, activity := range activities {
-	// 	task, err := s.taskRepo.GetByID(activity.ItemID)
-	// 	if err == nil {
-	// 		tasks = append(tasks, *task)
-	// 	}
-	// }
 	var dailyItems []models.DailyActivityItem
 	statusChangeRegex := regexp.MustCompile(`changed status of task '.*' from '(.*)' to '(.*)'`)
 
@@ -430,7 +423,6 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 				continue
 			}
 
-			// Log a single, combined state change.
 			newStatus := matches[2]
 			dailyItems = append(dailyItems, models.DailyActivityItem{
 				ActivityTime: activity.CreatedAt,

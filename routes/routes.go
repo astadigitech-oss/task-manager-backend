@@ -19,6 +19,8 @@ func SetupRoutes(r *gin.Engine) {
 	authController := controllers.NewAuthController(authService)
 
 	//repositories
+	attendanceRepo := repositories.NewAttendanceRepository(config.DB)
+	attendanceImageRepo := repositories.NewAttendanceImageRepository(config.DB)
 	taskImageRepo := repositories.NewTaskImageRepository()
 	taskFileRepo := repositories.NewTaskFileRepository(config.DB)
 	taskRepo := repositories.NewTaskRepository()
@@ -30,7 +32,9 @@ func SetupRoutes(r *gin.Engine) {
 	activityLogger := utils.NewActivityLogger(config.DB)
 
 	//services
-	pdfService := services.NewPDFService()                                                                                   // PDF service harus diinisialisasi
+	pdfService := services.NewPDFService()
+	attendanceImageService := services.NewAttendanceImageService(attendanceImageRepo)
+	attendanceService := services.NewAttendanceService(*attendanceRepo, *attendanceImageRepo, userRepo, workspaceRepo)
 	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskFileService := services.NewTaskFileService(taskFileRepo, taskRepo, projectRepo)
@@ -43,6 +47,7 @@ func SetupRoutes(r *gin.Engine) {
 	profileService := services.NewProfileService(userRepo)
 
 	//controllers
+	attendanceController := controllers.NewAttendanceController(*attendanceService, *attendanceImageService, pdfService, workspaceService)
 	taskImageController := controllers.NewTaskImageController(taskImageService)
 	taskFileController := controllers.NewTaskFileController(taskFileService)
 	taskController := controllers.NewTaskController(taskService)
@@ -110,6 +115,13 @@ func SetupRoutes(r *gin.Engine) {
 				workspace.DELETE("/members/", adminMiddleware, workspaceController.RemoveMember)
 
 				workspace.GET("/online-members", userController.GetOnlineWorkspaceMembers)
+
+				// Attendance
+				attendances := workspace.Group("/attendances")
+				{
+					attendances.POST("", attendanceController.SubmitAttendance)
+					attendances.GET("/export", adminMiddleware, attendanceController.ExportAttendances)
+				}
 			}
 		}
 
