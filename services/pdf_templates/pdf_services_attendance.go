@@ -153,7 +153,7 @@ func GenerateAttendanceReport(attendances []models.AttendanceExportResponse, wor
 		}
 
 		// --- FOOTER HALAMAN ---
-		pdf.SetY(-20)
+		pdf.SetY(-40)
 		pdf.SetFont("Arial", "I", 8)
 		pdf.CellFormat(0, 10, fmt.Sprintf("Halaman %d dari %d | Diterbitkan: %s", i+1, len(attendances), formattedDate), "", 0, "C", false, 0, "")
 	}
