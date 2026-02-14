@@ -10,6 +10,8 @@ import (
 	"project-management-backend/repositories"
 	"project-management-backend/utils"
 	"regexp"
+	"sort"
+	"strings"
 
 	"time"
 
@@ -40,22 +42,24 @@ type ProjectMember struct {
 }
 
 type projectService struct {
-	repo           repositories.ProjectRepository
-	userRepo       repositories.UserRepository
-	workspaceRepo  repositories.WorkspaceRepository
-	taskRepo       repositories.TaskRepository
-	pdfService     PDFService
-	activityLogger utils.ActivityLogger
+	repo              repositories.ProjectRepository
+	userRepo          repositories.UserRepository
+	workspaceRepo     repositories.WorkspaceRepository
+	taskRepo          repositories.TaskRepository
+	taskStatusLogRepo repositories.TaskStatusLogRepository
+	pdfService        PDFService
+	activityLogger    utils.ActivityLogger
 }
 
-func NewProjectService(repo repositories.ProjectRepository, userRepo repositories.UserRepository, workspaceRepo repositories.WorkspaceRepository, taskRepo repositories.TaskRepository, pdfService PDFService, activityLogger utils.ActivityLogger) ProjectService {
+func NewProjectService(repo repositories.ProjectRepository, userRepo repositories.UserRepository, workspaceRepo repositories.WorkspaceRepository, taskRepo repositories.TaskRepository, taskStatusLogRepo repositories.TaskStatusLogRepository, pdfService PDFService, activityLogger utils.ActivityLogger) ProjectService {
 	return &projectService{
-		repo:           repo,
-		userRepo:       userRepo,
-		workspaceRepo:  workspaceRepo,
-		taskRepo:       taskRepo,
-		pdfService:     pdfService,
-		activityLogger: activityLogger,
+		repo:              repo,
+		userRepo:          userRepo,
+		workspaceRepo:     workspaceRepo,
+		taskRepo:          taskRepo,
+		taskStatusLogRepo: taskStatusLogRepo,
+		pdfService:        pdfService,
+		activityLogger:    activityLogger,
 	}
 }
 
@@ -332,18 +336,26 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 		return nil, err
 	}
 
-	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneWeekAgo)
-	if err != nil {
-		return nil, err
-	}
-
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
 		return nil, err
 	}
 
 	tasks := append(inProgressTasks, doneTasks...)
-	tasks = append(tasks, onBoardTasks...)
+
+	var tasksWithHistory []models.TaskWithHistory
+	for _, task := range tasks {
+		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
+		if err != nil {
+			// Handle error, maybe log it and continue
+			continue
+		}
+		tasksWithHistory = append(tasksWithHistory, models.TaskWithHistory{
+			Task:       task,
+			StatusLogs: logs,
+		})
+	}
+
 	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
@@ -351,7 +363,7 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasks, *pic, period)
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasksWithHistory, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
@@ -375,6 +387,19 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 	}
 
 	tasks := append(startingTasks, dueTasks...)
+	var tasksWithHistory []models.TaskWithHistory
+	for _, task := range tasks {
+		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
+		if err != nil {
+			// Handle error, maybe log it and continue
+			continue
+		}
+		tasksWithHistory = append(tasksWithHistory, models.TaskWithHistory{
+			Task:       task,
+			StatusLogs: logs,
+		})
+	}
+
 	period := fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
@@ -382,7 +407,7 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasks, *pic, period)
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasksWithHistory, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
@@ -450,65 +475,90 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
-	oneWeekLater := now.AddDate(0, 0, 7)
 
 	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
 	}
+
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get done tasks: %w", err)
 	}
 
-	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekLater)
-	if err != nil {
-		return nil, err
+	tasks := append(inProgressTasks, doneTasks...)
+
+	var agendaItems []models.AgendaItem
+	for _, task := range tasks {
+		var memberName string
+
+		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
+			memberName = task.Members[0].User.Name
+		} else {
+			memberName = "N/A"
+		}
+
+		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
+		var totalDuration time.Duration
+		if err == nil {
+			for _, log := range logs {
+				if log.ClockOut != nil {
+					totalDuration += log.ClockOut.Sub(log.ClockIn)
+				}
+			}
+		}
+
+		agendaItems = append(agendaItems, models.AgendaItem{
+			ProjectTitle: task.Project.Name,
+			TaskTitle:    task.Title,
+			MemberName:   memberName,
+			Status:       task.Status,
+			StartDate:    task.StartDate,
+			DueDate:      task.DueDate,
+			Notes:        *task.Notes,
+			WorkDuration: formatDuration(totalDuration),
+		})
 	}
 
-	onBoardTasks, err := s.taskRepo.GetTasksOnBoardSince(projectID, oneWeekAgo)
-	if err != nil {
-		return nil, err
-	}
-
-	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneWeekLater)
-	if err != nil {
-		return nil, err
-	}
-
-	// --- Combine all tasks ---
-	var tasks []models.Task
-	tasks = append(tasks, inProgressTasks...)
-	tasks = append(tasks, doneTasks...)
-	tasks = append(tasks, onBoardTasks...)
-	tasks = append(tasks, startingTasks...)
-	tasks = append(tasks, dueTasks...)
-
-	// Define the period string
-	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
-
-	// --- Data for Daily Report ---
-	oneDayAgo := now.AddDate(0, 0, -1)
-	dailyInProgress, _ := s.taskRepo.GetTasksInProgressSince(projectID, oneDayAgo)
-	dailyDone, _ := s.taskRepo.GetTasksDoneSince(projectID, oneDayAgo)
-	dailyOnBoard, _ := s.taskRepo.GetTasksOnBoardSince(projectID, oneDayAgo)
-
-	var dailyTasks []models.Task
-	dailyTasks = append(dailyTasks, dailyInProgress...)
-	dailyTasks = append(dailyTasks, dailyDone...)
-	dailyTasks = append(dailyTasks, dailyOnBoard...)
-	dailyDate := now.Format("Monday, 02-01-2006")
+	sort.SliceStable(agendaItems, func(i, j int) bool {
+		if agendaItems[i].MemberName != agendaItems[j].MemberName {
+			return agendaItems[i].MemberName < agendaItems[j].MemberName
+		}
+		return agendaItems[i].StartDate.Before(agendaItems[j].StartDate)
+	})
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, tasks, dailyTasks, *pic, period, dailyDate)
+	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, agendaItems, *pic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
 
-	// Use the generic export function
 	return s.generatePDFAndLog(pdf, project, userID, "Agenda Report")
+}
+
+// HELPER FORMAT DURATION
+func formatDuration(d time.Duration) string {
+	if d <= 0 {
+		return "-"
+	}
+
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
+
+	var parts []string
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dj", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if seconds > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", seconds))
+	}
+	return strings.Join(parts, " ")
 }

@@ -24,6 +24,7 @@ func SetupRoutes(r *gin.Engine) {
 	taskImageRepo := repositories.NewTaskImageRepository()
 	taskFileRepo := repositories.NewTaskFileRepository(config.DB)
 	taskRepo := repositories.NewTaskRepository()
+	taskStatusLog := repositories.NewTaskStatusLogRepository()
 	projectRepo := repositories.NewProjectRepository()
 	projectImageRepo := repositories.NewProjectImageRepository()
 	workspaceRepo := repositories.NewWorkspaceRepository()
@@ -35,10 +36,10 @@ func SetupRoutes(r *gin.Engine) {
 	pdfService := services.NewPDFService()
 	attendanceImageService := services.NewAttendanceImageService(attendanceImageRepo)
 	attendanceService := services.NewAttendanceService(*attendanceRepo, *attendanceImageRepo, userRepo, workspaceRepo)
-	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
+	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, taskStatusLog, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskFileService := services.NewTaskFileService(taskFileRepo, taskRepo, projectRepo)
-	taskService := services.NewTaskService(taskRepo, activityLogger)
+	taskService := services.NewTaskService(taskRepo, taskStatusLog, activityLogger)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)

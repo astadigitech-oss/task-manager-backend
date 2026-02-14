@@ -74,7 +74,6 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 
 		if oldProfileImage != nil && *oldProfileImage != "" {
 			go func(oldURLPath string) {
-				// Convert URL path back to server file path for deletion
 				oldServerPath := filepath.Join("uploads", strings.TrimPrefix(oldURLPath, "/"))
 				if err := os.Remove(oldServerPath); err != nil {
 					log.Printf("[Cleanup] Failed to delete %s: %s", oldServerPath, err.Error())

@@ -27,12 +27,14 @@ type TaskService interface {
 type taskService struct {
 	repo           repositories.TaskRepository
 	activityLogger utils.ActivityLogger
+	taskStatusLog  repositories.TaskStatusLogRepository
 }
 
-func NewTaskService(repo repositories.TaskRepository, activityLogger utils.ActivityLogger) TaskService {
+func NewTaskService(repo repositories.TaskRepository, taskStatusLogRepo repositories.TaskStatusLogRepository, activityLogger utils.ActivityLogger) TaskService {
 	return &taskService{
 		repo:           repo,
 		activityLogger: activityLogger,
+		taskStatusLog:  taskStatusLogRepo,
 	}
 
 }
@@ -51,16 +53,26 @@ func (s *taskService) CreateTask(task *models.Task, workspaceID uint, user *mode
 	}
 
 	err = s.repo.CreateTask(task)
-	if err == nil {
-		activity := models.ActivityLog{
-			UserID:    user.ID,
-			Action:    fmt.Sprintf("User created task '%s' with status '%s'", task.Title, task.Status),
-			TableName: "tasks",
-			ItemID:    task.ID,
-		}
-		s.activityLogger.Log(activity)
+	if err != nil {
+		return err
 	}
-	return err
+
+	activity := models.ActivityLog{
+		UserID:    user.ID,
+		Action:    fmt.Sprintf("User created task '%s' with status '%s'", task.Title, task.Status),
+		TableName: "tasks",
+		ItemID:    task.ID,
+	}
+	s.activityLogger.Log(activity)
+
+	taskStatusLog := &models.TaskStatusLog{
+		TaskID:   task.ID,
+		Status:   task.Status,
+		ClockIn:  task.StartDate,
+		ClockOut: nil,
+	}
+
+	return s.taskStatusLog.Create(taskStatusLog)
 }
 
 func (s *taskService) GetAllTasks(projectID uint, workspaceID uint, user *models.User) ([]models.Task, error) {
@@ -156,6 +168,28 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 			ItemID:    taskID,
 		}
 		s.activityLogger.Log(activity)
+
+		now := time.Now()
+		lastLog, err := s.taskStatusLog.FindLastLog(taskID)
+		if err != nil {
+			return err
+		}
+		if lastLog != nil {
+			err = s.taskStatusLog.UpdateClockOut(lastLog.ID, now)
+			if err != nil {
+				return err
+			}
+		}
+
+		newLog := &models.TaskStatusLog{
+			TaskID:  taskID,
+			Status:  newStatus,
+			ClockIn: now,
+		}
+		err = s.taskStatusLog.Create(newLog)
+		if err != nil {
+			return err
+		}
 	}
 
 	if status, ok := finalUpdates["status"]; ok {

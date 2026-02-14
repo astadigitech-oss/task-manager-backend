@@ -144,10 +144,9 @@ func (s *projectImageService) DeleteProjectImage(imageID uint, userID uint) erro
 		return errors.New("project tidak ditemukan atau workspace sudah dihapus")
 	}
 
-	filePath := "." + image.URL // Karena URL relative
+	filePath := "." + image.URL
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		// Log error tapi tetap lanjut delete dari database
-		// return errors.New("gagal menghapus file: " + err.Error())
+		return errors.New("gagal menghapus file: " + err.Error())
 	}
 
 	return s.repo.DeleteProjectImage(imageID)
@@ -161,14 +160,12 @@ func saveUploadedFile(file *multipart.FileHeader, dst string) error {
 	}
 	defer src.Close()
 
-	// Create destination file
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	// Copy file
 	_, err = out.ReadFrom(src)
 	return err
 }
