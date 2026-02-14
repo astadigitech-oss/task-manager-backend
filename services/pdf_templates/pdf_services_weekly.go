@@ -87,7 +87,7 @@ func GenerateWeeklyReportPDF(project *models.Project, tasksWithHistory []models.
 	no := 1
 	colWidths := []float64{10, 25, 30, 45, 25, 25, 30, 30, 45}
 	for _, taskWithHistory := range tasksWithHistory {
-		pdf.SetFillColor(255, 255, 255) // Set fill to white for body
+		pdf.SetFillColor(255, 255, 255)
 		task := taskWithHistory.Task
 		var members []string
 		for _, member := range task.Members {
@@ -156,7 +156,7 @@ func GenerateWeeklyReportPDF(project *models.Project, tasksWithHistory []models.
 				if log.ClockOut != nil && !log.ClockOut.IsZero() {
 					duration = formatDuration(log.ClockOut.Sub(log.ClockIn))
 				} else {
-					duration = "On Progress"
+					duration = "-"
 				}
 				pdf.CellFormat(colWidths[6], cellHeight, log.Status, "1", 0, "C", false, 0, "")
 				pdf.CellFormat(colWidths[7], cellHeight, duration, "1", 0, "C", false, 0, "")
