@@ -19,39 +19,6 @@ func NewExportController(projectService services.ProjectService) *ExportControll
 	}
 }
 
-// func (c *ExportController) ExportProject(ctx *gin.Context) {
-// 	projectID, err := strconv.Atoi(ctx.Param("id"))
-// 	if err != nil {
-// 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-// 		return
-// 	}
-
-// 	filter := ctx.Query("filter")
-
-// 	user, exists := ctx.Get("user")
-// 	if !exists {
-// 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not found in context"})
-// 		return
-// 	}
-
-// 	currentUser, ok := user.(*models.User)
-// 	if !ok {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user type in context"})
-// 		return
-// 	}
-
-// 	pdfBytes, err := c.projectService.ExportProject(uint(projectID), currentUser.ID, filter)
-// 	if err != nil {
-// 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-// 		return
-// 	}
-
-// 	ctx.Header("Content-Disposition", "attachment; filename=project_report.pdf")
-// 	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
-// }
-
-// --- START: NEW CONTROLLERS ADDED FOR NEW ROUTES ---
-
 // Handler for Weekly Backward Report
 func (c *ExportController) ExportWeeklyBackward(ctx *gin.Context) {
 	projectID, err := strconv.Atoi(ctx.Param("project_id"))
@@ -112,7 +79,7 @@ func (c *ExportController) ExportDaily(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
-func (c *ExportController) ExportAgenda(ctx *gin.Context) {
+func (c *ExportController) ExportMonitoring(ctx *gin.Context) {
 	projectID, err := strconv.Atoi(ctx.Param("project_id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project ID tidak ditemukan"})
@@ -121,12 +88,12 @@ func (c *ExportController) ExportAgenda(ctx *gin.Context) {
 
 	currentUser := GetCurrentUser(ctx)
 
-	pdfBytes, err := c.projectService.ExportAgenda(uint(projectID), currentUser.ID)
+	pdfBytes, err := c.projectService.ExportMonitoring(uint(projectID), currentUser.ID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.Header("Content-Disposition", "attachment; filename=project_report_agenda.pdf")
+	ctx.Header("Content-Disposition", "attachment; filename=project_report_weekly_monitoring.pdf")
 	ctx.Data(http.StatusOK, "application/pdf", pdfBytes)
 }

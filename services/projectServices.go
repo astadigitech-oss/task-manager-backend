@@ -33,7 +33,7 @@ type ProjectService interface {
 	ExportWeeklyBackward(projectID uint, userID uint) ([]byte, error)
 	ExportWeeklyForward(projectID uint, userID uint) ([]byte, error)
 	ExportDaily(projectID uint, userID uint) ([]byte, error)
-	ExportAgenda(projectID uint, userID uint) ([]byte, error)
+	ExportMonitoring(projectID uint, userID uint) ([]byte, error)
 }
 
 type ProjectMember struct {
@@ -333,37 +333,65 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 
 	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
 	}
 
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get done tasks: %w", err)
 	}
 
 	tasks := append(inProgressTasks, doneTasks...)
 
-	var tasksWithHistory []models.TaskWithHistory
+	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
-		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
-		if err != nil {
-			// Handle error, maybe log it and continue
-			continue
+		var memberName string
+
+		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
+			memberName = task.Members[0].User.Name
+		} else {
+			memberName = "N/A"
 		}
-		tasksWithHistory = append(tasksWithHistory, models.TaskWithHistory{
-			Task:       task,
-			StatusLogs: logs,
+
+		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
+		var totalDuration time.Duration
+		if err == nil {
+			for _, log := range logs {
+				if log.ClockOut != nil {
+					totalDuration += log.ClockOut.Sub(log.ClockIn)
+				}
+			}
+		}
+
+		agendaItems = append(agendaItems, models.AgendaItem{
+			ProjectTitle: task.Project.Name,
+			TaskTitle:    task.Title,
+			MemberName:   memberName,
+			Status:       task.Status,
+			Kondisi:      task.Priority,
+			StartDate:    task.StartDate,
+			DueDate:      task.DueDate,
+			Notes:        *task.Notes,
+			WorkDuration: formatDuration(totalDuration),
+			FinishedAt:   task.FinishedAt,
 		})
 	}
 
 	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+
+	sort.SliceStable(agendaItems, func(i, j int) bool {
+		if agendaItems[i].MemberName != agendaItems[j].MemberName {
+			return agendaItems[i].MemberName < agendaItems[j].MemberName
+		}
+		return agendaItems[i].StartDate.Before(agendaItems[j].StartDate)
+	})
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasksWithHistory, *pic, period)
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, agendaItems, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
@@ -374,40 +402,69 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 // Export 2: Weekly Forward Report
 func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
-	oneWeekLater := now.AddDate(0, 0, 7)
+	oneWeekAgo := now.AddDate(0, 0, 7)
 
-	startingTasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekLater)
+	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
 	}
 
-	dueTasks, err := s.taskRepo.GetOnProgressTasksDueBetween(projectID, now, oneWeekLater)
+	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get done tasks: %w", err)
 	}
 
-	tasks := append(startingTasks, dueTasks...)
-	var tasksWithHistory []models.TaskWithHistory
+	tasks := append(inProgressTasks, doneTasks...)
+
+	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
-		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
-		if err != nil {
-			// Handle error, maybe log it and continue
-			continue
+		var memberName string
+
+		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
+			memberName = task.Members[0].User.Name
+		} else {
+			memberName = "N/A"
 		}
-		tasksWithHistory = append(tasksWithHistory, models.TaskWithHistory{
-			Task:       task,
-			StatusLogs: logs,
+
+		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
+		var totalDuration time.Duration
+		if err == nil {
+			for _, log := range logs {
+				if log.ClockOut != nil {
+					totalDuration += log.ClockOut.Sub(log.ClockIn)
+				}
+			}
+		}
+
+		agendaItems = append(agendaItems, models.AgendaItem{
+			ProjectTitle: task.Project.Name,
+			TaskTitle:    task.Title,
+			MemberName:   memberName,
+			Status:       task.Status,
+			Kondisi:      task.Priority,
+			StartDate:    task.StartDate,
+			DueDate:      task.DueDate,
+			Notes:        *task.Notes,
+			WorkDuration: formatDuration(totalDuration),
+			FinishedAt:   task.FinishedAt,
 		})
 	}
 
-	period := fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekLater.Format("02 Jan 2006"))
+	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+
+	sort.SliceStable(agendaItems, func(i, j int) bool {
+		if agendaItems[i].MemberName != agendaItems[j].MemberName {
+			return agendaItems[i].MemberName < agendaItems[j].MemberName
+		}
+		return agendaItems[i].StartDate.Before(agendaItems[j].StartDate)
+	})
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, tasksWithHistory, *pic, period)
+	pdf, err := s.pdfService.GenerateWeeklyReportPDF(project, agendaItems, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
@@ -471,73 +528,49 @@ func (s *projectService) ExportDaily(projectID uint, userID uint) ([]byte, error
 	return s.generatePDFAndLog(pdf, project, userID, "Daily Report")
 }
 
-// Export 4: Agenda Report
-func (s *projectService) ExportAgenda(projectID uint, userID uint) ([]byte, error) {
+// Export 4: Monitoring Report
+func (s *projectService) ExportMonitoring(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
 
 	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
+		return nil, err
 	}
 
 	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get done tasks: %w", err)
+		return nil, err
 	}
 
 	tasks := append(inProgressTasks, doneTasks...)
 
-	var agendaItems []models.AgendaItem
+	var tasksWithHistory []models.TaskWithHistory
 	for _, task := range tasks {
-		var memberName string
-
-		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
-			memberName = task.Members[0].User.Name
-		} else {
-			memberName = "N/A"
-		}
-
 		logs, err := s.taskStatusLogRepo.GetLogsByTaskID(task.ID)
-		var totalDuration time.Duration
-		if err == nil {
-			for _, log := range logs {
-				if log.ClockOut != nil {
-					totalDuration += log.ClockOut.Sub(log.ClockIn)
-				}
-			}
+		if err != nil {
+			// Handle error, maybe log it and continue
+			continue
 		}
-
-		agendaItems = append(agendaItems, models.AgendaItem{
-			ProjectTitle: task.Project.Name,
-			TaskTitle:    task.Title,
-			MemberName:   memberName,
-			Status:       task.Status,
-			StartDate:    task.StartDate,
-			DueDate:      task.DueDate,
-			Notes:        *task.Notes,
-			WorkDuration: formatDuration(totalDuration),
+		tasksWithHistory = append(tasksWithHistory, models.TaskWithHistory{
+			Task:       task,
+			StatusLogs: logs,
 		})
 	}
 
-	sort.SliceStable(agendaItems, func(i, j int) bool {
-		if agendaItems[i].MemberName != agendaItems[j].MemberName {
-			return agendaItems[i].MemberName < agendaItems[j].MemberName
-		}
-		return agendaItems[i].StartDate.Before(agendaItems[j].StartDate)
-	})
+	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
 
 	project, pic, err := s.getProjectAndPIC(projectID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	pdf, err := s.pdfService.GenerateAgendaReportPDF(project, agendaItems, *pic)
+	pdf, err := s.pdfService.GenerateMonitoringReportPDF(project, tasksWithHistory, *pic, period)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
 	}
 
-	return s.generatePDFAndLog(pdf, project, userID, "Agenda Report")
+	return s.generatePDFAndLog(pdf, project, userID, "Monitoring Report")
 }
 
 // HELPER FORMAT DURATION
