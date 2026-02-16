@@ -395,9 +395,9 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 // Export 2: Weekly Forward Report
 func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byte, error) {
 	now := time.Now()
-	oneWeekAgo := now.AddDate(0, 0, 7)
+	oneWeekForward := now.AddDate(0, 0, 7)
 
-	tasks, err := s.taskRepo.GetTasksStartingBetween(projectID, oneWeekAgo, now)
+	tasks, err := s.taskRepo.GetTasksStartingBetween(projectID, now, oneWeekForward)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
@@ -436,7 +436,7 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 		})
 	}
 
-	period := fmt.Sprintf("%s - %s", oneWeekAgo.Format("02 Jan 2006"), now.Format("02 Jan 2006"))
+	period := fmt.Sprintf("%s - %s", now.Format("02 Jan 2006"), oneWeekForward.Format("02 Jan 2006"))
 
 	sort.SliceStable(agendaItems, func(i, j int) bool {
 		if agendaItems[i].MemberName != agendaItems[j].MemberName {
