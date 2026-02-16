@@ -338,6 +338,10 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 
 	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
+		if task.Status == "on_board" {
+			continue
+		}
+
 		var memberName string
 
 		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
@@ -404,6 +408,9 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 
 	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
+		if task.Status == "done" {
+			continue
+		}
 		var memberName string
 
 		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
