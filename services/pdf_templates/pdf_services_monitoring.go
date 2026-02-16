@@ -112,7 +112,7 @@ func GenerateMonitoringReportPDF(project *models.Project, tasksWithHistory []mod
 
 		spanningData := []string{
 			fmt.Sprintf("%d", no),
-			task.StartDate.Format("01-01-2006"),
+			task.StartDate.Format("02-01-2006"),
 			penanggungJawab,
 			task.Title,
 			task.Priority,
