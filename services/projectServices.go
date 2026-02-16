@@ -526,17 +526,10 @@ func (s *projectService) ExportMonitoring(projectID uint, userID uint) ([]byte, 
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
 
-	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
+	tasks, err := s.taskRepo.GetTasksStartingBetween(projectID, oneWeekAgo, now)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
-
-	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
-	if err != nil {
-		return nil, err
-	}
-
-	tasks := append(inProgressTasks, doneTasks...)
 
 	var tasksWithHistory []models.TaskWithHistory
 	for _, task := range tasks {
