@@ -331,17 +331,10 @@ func (s *projectService) ExportWeeklyBackward(projectID uint, userID uint) ([]by
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, -7)
 
-	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
+	tasks, err := s.taskRepo.GetTasksStartingBetween(projectID, oneWeekAgo, now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
+		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
-
-	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get done tasks: %w", err)
-	}
-
-	tasks := append(inProgressTasks, doneTasks...)
 
 	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
@@ -404,17 +397,10 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 	now := time.Now()
 	oneWeekAgo := now.AddDate(0, 0, 7)
 
-	inProgressTasks, err := s.taskRepo.GetTasksInProgressSince(projectID, oneWeekAgo)
+	tasks, err := s.taskRepo.GetTasksStartingBetween(projectID, oneWeekAgo, now)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get in-progress tasks: %w", err)
+		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
-
-	doneTasks, err := s.taskRepo.GetTasksDoneSince(projectID, oneWeekAgo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get done tasks: %w", err)
-	}
-
-	tasks := append(inProgressTasks, doneTasks...)
 
 	var agendaItems []models.AgendaItem
 	for _, task := range tasks {
