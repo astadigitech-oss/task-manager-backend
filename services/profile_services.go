@@ -52,6 +52,11 @@ func (s *ProfileService) UpdateProfile(c *gin.Context) {
 		u.Position = &position
 	}
 
+	telegramChatID := c.PostForm("telegram_chat_id")
+	if telegramChatID != "" {
+		u.TelegramChatID = &telegramChatID
+	}
+
 	file, err := c.FormFile("profile_image")
 	if err == nil {
 		oldProfileImage := u.ProfileImage

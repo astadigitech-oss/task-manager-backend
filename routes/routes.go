@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"os"
 	"project-management-backend/config"
 	"project-management-backend/controllers"
 	"project-management-backend/middleware"
@@ -32,6 +33,10 @@ func SetupRoutes(r *gin.Engine) {
 	// Initialize Activity Logger
 	activityLogger := utils.NewActivityLogger(config.DB)
 
+	// Initialize Telegram Service
+	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	telegramService := services.NewTelegramService(telegramBotToken)
+
 	//services
 	pdfService := services.NewPDFService()
 	attendanceImageService := services.NewAttendanceImageService(attendanceImageRepo)
@@ -39,7 +44,7 @@ func SetupRoutes(r *gin.Engine) {
 	projectService := services.NewProjectService(projectRepo, userRepo, workspaceRepo, taskRepo, taskStatusLog, pdfService, activityLogger) // Tambahkan userRepo dan pdfService
 	taskImageService := services.NewTaskImageService(taskImageRepo, taskRepo, projectRepo, workspaceRepo)
 	taskFileService := services.NewTaskFileService(taskFileRepo, taskRepo, projectRepo)
-	taskService := services.NewTaskService(taskRepo, taskStatusLog, activityLogger)
+	taskService := services.NewTaskService(taskRepo, userRepo, taskStatusLog, activityLogger, telegramService)
 	projectImageService := services.NewProjectImageService(projectImageRepo, projectRepo, workspaceRepo, userRepo)
 	workspaceService := services.NewWorkspaceService(workspaceRepo, projectRepo, taskRepo)
 	userService := services.NewUserService(userRepo)

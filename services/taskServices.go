@@ -25,16 +25,20 @@ type TaskService interface {
 	DeleteMember(taskID uint, projectID uint, workspaceID uint, userID uint, currentUser *models.User) error
 }
 type taskService struct {
-	repo           repositories.TaskRepository
-	activityLogger utils.ActivityLogger
-	taskStatusLog  repositories.TaskStatusLogRepository
+	repo            repositories.TaskRepository
+	userRepo        repositories.UserRepository
+	activityLogger  utils.ActivityLogger
+	taskStatusLog   repositories.TaskStatusLogRepository
+	telegramService TelegramService
 }
 
-func NewTaskService(repo repositories.TaskRepository, taskStatusLogRepo repositories.TaskStatusLogRepository, activityLogger utils.ActivityLogger) TaskService {
+func NewTaskService(repo repositories.TaskRepository, userRepo repositories.UserRepository, taskStatusLogRepo repositories.TaskStatusLogRepository, activityLogger utils.ActivityLogger, telegramService TelegramService) TaskService {
 	return &taskService{
-		repo:           repo,
-		activityLogger: activityLogger,
-		taskStatusLog:  taskStatusLogRepo,
+		repo:            repo,
+		userRepo:        userRepo,
+		activityLogger:  activityLogger,
+		taskStatusLog:   taskStatusLogRepo,
+		telegramService: telegramService,
 	}
 
 }
@@ -264,7 +268,17 @@ func (s *taskService) AddMember(taskID uint, projectID uint, workspaceID uint, u
 		RoleInTask: role,
 		AssignedAt: task.CreatedAt,
 	}
-	return s.repo.AddMember(member)
+	if err := s.repo.AddMember(member); err != nil {
+		return err
+	}
+
+	assignedUser, err := s.userRepo.GetByID(userID)
+	if err == nil && assignedUser.TelegramChatID != nil && *assignedUser.TelegramChatID != "" {
+		message := fmt.Sprintf("Anda telah ditugaskan untuk task baru: %s", task.Title)
+		go s.telegramService.SendNotification(*assignedUser.TelegramChatID, message)
+	}
+
+	return nil
 }
 
 func (s *taskService) GetMembers(taskID uint, projectID uint, workspaceID uint, user *models.User) ([]models.TaskUser, error) {
