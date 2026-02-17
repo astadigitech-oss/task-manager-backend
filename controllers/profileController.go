@@ -28,10 +28,11 @@ func (pc *ProfileController) ListProfile(c *gin.Context) {
 		Code:    200,
 		Message: "Profile berhasil diambil",
 		Data: gin.H{
-			"name":     profile.Name,
-			"email":    profile.Email,
-			"position": profile.Position,
-			"avatar":   profile.ProfileImage,
+			"name":             profile.Name,
+			"email":            profile.Email,
+			"position":         profile.Position,
+			"avatar":           profile.ProfileImage,
+			"telegram_chat_id": profile.TelegramChatID,
 		},
 	})
 }
