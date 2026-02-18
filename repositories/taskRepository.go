@@ -33,6 +33,7 @@ type TaskRepository interface {
 	GetTasksStartingBetween(projectID uint, from, to time.Time) ([]models.Task, error)
 	GetTasksOnBoardSince(projectID uint, since time.Time) ([]models.Task, error)
 	GetOnProgressTasksDueBetween(projectID uint, from, to time.Time) ([]models.Task, error)
+	GetTasksWithStatusOtherThan(projectID uint, statuses []string) ([]models.Task, error)
 }
 
 type taskRepository struct{}
@@ -251,5 +252,12 @@ func (r *taskRepository) GetOnProgressTasksDueBetween(projectID uint, from, to t
 	var tasks []models.Task
 	db := newBaseTaskQuery(projectID)
 	err := db.Where("tasks.status = 'on_progress' AND tasks.due_date BETWEEN ? AND ?", from, to).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *taskRepository) GetTasksWithStatusOtherThan(projectID uint, statuses []string) ([]models.Task, error) {
+	var tasks []models.Task
+	db := newBaseTaskQuery(projectID)
+	err := db.Where("tasks.status NOT IN ?", statuses).Find(&tasks).Error
 	return tasks, err
 }

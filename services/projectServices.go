@@ -406,11 +406,30 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 		return nil, fmt.Errorf("failed to get tasks: %w", err)
 	}
 
-	var agendaItems []models.AgendaItem
+	statusesToExclude := []string{"done"}
+	additionalTasks, err := s.taskRepo.GetTasksWithStatusOtherThan(projectID, statusesToExclude)
+	if err != nil {
+		fmt.Printf("Warning: could not fetch additional tasks: %v", err)
+	}
+
+	taskMap := make(map[uint]models.Task)
 	for _, task := range tasks {
-		if task.Status == "done" {
-			continue
+		taskMap[task.ID] = task
+	}
+
+	for _, task := range additionalTasks {
+		if _, exists := taskMap[task.ID]; !exists {
+			taskMap[task.ID] = task
 		}
+	}
+
+	mergedTasks := make([]models.Task, 0, len(taskMap))
+	for _, task := range taskMap {
+		mergedTasks = append(mergedTasks, task)
+	}
+
+	var agendaItems []models.AgendaItem
+	for _, task := range mergedTasks {
 		var memberName string
 
 		if len(task.Members) > 0 && task.Members[0].User.ID != 0 {
@@ -439,7 +458,6 @@ func (s *projectService) ExportWeeklyForward(projectID uint, userID uint) ([]byt
 			DueDate:      task.DueDate,
 			Notes:        *task.Notes,
 			WorkDuration: formatDuration(totalDuration),
-			FinishedAt:   task.FinishedAt,
 		})
 	}
 
