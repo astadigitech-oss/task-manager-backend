@@ -274,7 +274,7 @@ func (s *taskService) AddMember(taskID uint, projectID uint, workspaceID uint, u
 
 	assignedUser, err := s.userRepo.GetByID(userID)
 	if err == nil && assignedUser.TelegramChatID != nil && *assignedUser.TelegramChatID != "" {
-		message := fmt.Sprintf("Anda telah ditugaskan untuk task baru: %s", task.Title)
+		message := fmt.Sprintf("Anda telah ditugaskan untuk task baru: %s, kerjakan sebelum %s", task.Title, task.DueDate.Format("02-01-2006 15:04"))
 		go s.telegramService.SendNotification(*assignedUser.TelegramChatID, message)
 	}
 
