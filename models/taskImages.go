@@ -6,6 +6,7 @@ type TaskImage struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	TaskID     uint      `json:"task_id"`
 	URL        string    `json:"url"`
+	Type       string    `json:"type"`        // before/after
 	UploadedBy uint      `json:"uploaded_by"` // Member yg upload
 	Task       Task      `gorm:"foreignKey:TaskID" json:"task"`
 	CreatedAt  time.Time `gorm:"autoCreateTime"`

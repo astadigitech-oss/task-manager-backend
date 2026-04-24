@@ -1,0 +1,1 @@
+ALTER TABLE task_images ADD COLUMN type VARCHAR(10) NOT NULL DEFAULT 'before' AFTER url;

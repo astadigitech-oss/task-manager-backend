@@ -62,7 +62,18 @@ func (tic *TaskImageController) GetTaskImages(c *gin.Context) {
 	})
 }
 
-func (tic *TaskImageController) UploadTaskImage(c *gin.Context) {
+// Upload gambar before
+func (tic *TaskImageController) UploadTaskImageBefore(c *gin.Context) {
+	tic.uploadTaskImageWithType(c, "before")
+}
+
+// Upload gambar after
+func (tic *TaskImageController) UploadTaskImageAfter(c *gin.Context) {
+	tic.uploadTaskImageWithType(c, "after")
+}
+
+// Helper untuk upload gambar dengan tipe
+func (tic *TaskImageController) uploadTaskImageWithType(c *gin.Context, imgType string) {
 	workspaceID, err := ParseUintParam(c, "workspace_id")
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -75,7 +86,6 @@ func (tic *TaskImageController) UploadTaskImage(c *gin.Context) {
 		return
 	}
 
-	// Get file dari form-data
 	file, err := c.FormFile("image")
 	if err != nil {
 		c.JSON(400, gin.H{"error": "File image diperlukan"})
@@ -84,7 +94,7 @@ func (tic *TaskImageController) UploadTaskImage(c *gin.Context) {
 
 	currentUser := GetCurrentUser(c)
 
-	taskImage, err := tic.Service.UploadTaskImage(taskID, workspaceID, file, currentUser)
+	taskImage, err := tic.Service.UploadTaskImageWithType(taskID, workspaceID, file, currentUser, imgType)
 	if err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
@@ -99,6 +109,7 @@ func (tic *TaskImageController) UploadTaskImage(c *gin.Context) {
 		Data: gin.H{
 			"id":          taskImage.ID,
 			"url":         taskImage.URL,
+			"type":        taskImage.Type,
 			"task_id":     taskImage.TaskID,
 			"uploaded_by": taskImage.UploadedBy,
 			"created_at":  taskImage.CreatedAt,

@@ -14,6 +14,7 @@ import (
 
 type TaskImageService interface {
 	UploadTaskImage(taskID uint, workspaceID uint, file *multipart.FileHeader, user *models.User) (*models.TaskImage, error)
+	UploadTaskImageWithType(taskID uint, workspaceID uint, file *multipart.FileHeader, user *models.User, imgType string) (*models.TaskImage, error)
 	GetTaskImages(taskID uint, projectID uint, workspaceID uint, user *models.User) ([]models.TaskImage, error)
 	DeleteTaskImage(imageID uint, workspaceID uint, user *models.User) error
 }
@@ -111,6 +112,63 @@ func (s *taskImageService) UploadTaskImage(taskID uint, workspaceID uint, file *
 		return nil, errors.New("gagal menyimpan data image: " + err.Error())
 	}
 
+	return taskImage, nil
+}
+
+// UploadTaskImageWithType untuk upload gambar before/after
+func (s *taskImageService) UploadTaskImageWithType(taskID uint, workspaceID uint, file *multipart.FileHeader, user *models.User, imgType string) (*models.TaskImage, error) {
+	task, err := s.taskRepo.GetByID(taskID)
+	if err != nil {
+		return nil, errors.New("task tidak ditemukan")
+	}
+	if task.Project.WorkspaceID != workspaceID {
+		return nil, errors.New("task tidak ditemukan di workspace ini")
+	}
+	if user.Role != "admin" {
+		hasWorkspaceAccess, err := s.workspaceRepo.IsUserMember(workspaceID, user.ID)
+		if err != nil || !hasWorkspaceAccess {
+			return nil, errors.New("tidak memiliki akses ke workspace ini")
+		}
+		isTaskMember, err := s.taskRepo.IsUserMember(taskID, user.ID)
+		if err != nil || !isTaskMember {
+			return nil, errors.New("hanya task member yang boleh upload image")
+		}
+	}
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/jpg":  true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	fileType := file.Header.Get("Content-Type")
+	if !allowedTypes[fileType] {
+		return nil, errors.New("format file tidak didukung. Hanya JPEG, PNG, GIF, WebP")
+	}
+	if file.Size > 5*1024*1024 {
+		return nil, errors.New("ukuran file maksimal 5MB")
+	}
+	fileExt := filepath.Ext(file.Filename)
+	fileName := uuid.New().String() + fileExt
+	uploadDir := "./uploads/tasks"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return nil, errors.New("gagal membuat directory upload")
+	}
+	filePath := filepath.Join(uploadDir, fileName)
+	if err := saveUploadedFile(file, filePath); err != nil {
+		return nil, errors.New("gagal menyimpan file: " + err.Error())
+	}
+	relativeURL := "/uploads/tasks/" + fileName
+	taskImage := &models.TaskImage{
+		TaskID:     taskID,
+		URL:        relativeURL,
+		Type:       imgType,
+		UploadedBy: user.ID,
+	}
+	if err := s.repo.CreateTaskImage(taskImage); err != nil {
+		os.Remove(filePath)
+		return nil, errors.New("gagal menyimpan data image: " + err.Error())
+	}
 	return taskImage, nil
 }
 

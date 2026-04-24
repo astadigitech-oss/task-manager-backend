@@ -40,18 +40,30 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 			})
 		}
 
-		var completedTasks int
+		// Hitung persentase per status (5 status)
+		onBoard, onProgress, pending, canceled, done := 0, 0, 0, 0, 0
 		for _, task := range project.Tasks {
-			if task.Status == "done" {
-				completedTasks++
+			switch task.Status {
+			case "on_board":
+				onBoard++
+			case "on_progress":
+				onProgress++
+			case "pending":
+				pending++
+			case "canceled":
+				canceled++
+			case "done":
+				done++
 			}
 		}
-
-		var progress float64
-		if len(project.Tasks) > 0 {
-			progress = (float64(completedTasks) / float64(len(project.Tasks))) * 100
-		} else {
-			progress = 0
+		totalTasks := len(project.Tasks)
+		var onBoardPct, onProgressPct, pendingPct, canceledPct, donePct int
+		if totalTasks > 0 {
+			onBoardPct = int(float64(onBoard) / float64(totalTasks) * 100)
+			onProgressPct = int(float64(onProgress) / float64(totalTasks) * 100)
+			pendingPct = int(float64(pending) / float64(totalTasks) * 100)
+			canceledPct = int(float64(canceled) / float64(totalTasks) * 100)
+			donePct = 100 - onBoardPct - onProgressPct - pendingPct - canceledPct // pastikan total 100
 		}
 		projectList = append(projectList, gin.H{
 			"id":           project.ID,
@@ -59,9 +71,15 @@ func (pc *ProjectController) ListProjects(c *gin.Context) {
 			"description":  project.Description,
 			"workspace_id": project.WorkspaceID,
 			"member_count": len(project.Members),
-			"task_count":   len(project.Tasks),
+			"task_count":   totalTasks,
 			"members":      members,
-			"progress":     progress,
+			"progress": gin.H{
+				"on_board":    onBoardPct,
+				"on_progress": onProgressPct,
+				"pending":     pendingPct,
+				"canceled":    canceledPct,
+				"done":        donePct,
+			},
 		})
 	}
 
@@ -141,6 +159,31 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 		})
 	}
 
+	// Hitung persentase per status (5 status)
+	onBoard, onProgress, pending, canceled, done := 0, 0, 0, 0, 0
+	for _, task := range project.Tasks {
+		switch task.Status {
+		case "on_board":
+			onBoard++
+		case "on_progress":
+			onProgress++
+		case "pending":
+			pending++
+		case "canceled":
+			canceled++
+		case "done":
+			done++
+		}
+	}
+	totalTasks := len(project.Tasks)
+	var onBoardPct, onProgressPct, pendingPct, canceledPct, donePct int
+	if totalTasks > 0 {
+		onBoardPct = int(float64(onBoard) / float64(totalTasks) * 100)
+		onProgressPct = int(float64(onProgress) / float64(totalTasks) * 100)
+		pendingPct = int(float64(pending) / float64(totalTasks) * 100)
+		canceledPct = int(float64(canceled) / float64(totalTasks) * 100)
+		donePct = 100 - onBoardPct - onProgressPct - pendingPct - canceledPct // pastikan total 100
+	}
 	c.JSON(200, APIResponse{
 		Success: true,
 		Code:    200,
@@ -152,6 +195,13 @@ func (pc *ProjectController) DetailProject(c *gin.Context) {
 			"workspace_id": project.WorkspaceID,
 			"created_by":   project.CreatedBy,
 			"member":       members,
+			"progress": gin.H{
+				"on_board":    onBoardPct,
+				"on_progress": onProgressPct,
+				"pending":     pendingPct,
+				"canceled":    canceledPct,
+				"done":        donePct,
+			},
 		},
 	})
 }

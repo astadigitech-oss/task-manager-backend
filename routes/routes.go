@@ -195,7 +195,8 @@ func SetupRoutes(r *gin.Engine) {
 				images := task.Group("/images")
 				{
 					images.GET("", taskImageController.GetTaskImages)
-					images.POST("", taskImageController.UploadTaskImage)
+					images.POST("/before", taskImageController.UploadTaskImageBefore)
+					images.POST("/after", taskImageController.UploadTaskImageAfter)
 					images.DELETE("/:image_id", taskImageController.DeleteTaskImage)
 				}
 
