@@ -12,6 +12,7 @@ type TaskStatusLog struct {
 	Status    string         `json:"status"`
 	ClockIn   time.Time      `json:"clock_in"`
 	ClockOut  *time.Time     `json:"clock_out"`
+	Duration  *int64         `json:"duration"`
 	CreatedAt time.Time      `gorm:"autoCreateTime"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`

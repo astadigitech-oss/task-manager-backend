@@ -3,6 +3,7 @@ package utils
 
 import (
 	"project-management-backend/models"
+	"project-management-backend/repositories"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type TaskResponse struct {
 	OverDueDuration int64                `json:"overdue_duration"`
 	CreatedAt       string               `json:"created_at"`
 	FinishedAt      *time.Time           `json:"finished_at"`
+	StatusDurations map[string]int64     `json:"status_durations"`
 }
 
 type SimpleTaskResponse struct {
@@ -54,6 +56,15 @@ type TaskFileResponse struct {
 }
 
 func ToTaskResponse(task *models.Task) TaskResponse {
+	statusDurations := map[string]int64{}
+	if task.ID != 0 {
+		logs, _ := repositories.NewTaskStatusLogRepository().GetLogsByTaskID(task.ID)
+		for _, log := range logs {
+			if log.Duration != nil {
+				statusDurations[log.Status] += *log.Duration
+			}
+		}
+	}
 	// Convert members
 	var memberResponses []TaskMemberResponse
 	for _, member := range task.Members {
@@ -107,6 +118,7 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 		OverDueDuration: int64(task.OverdueDuration.Seconds()),
 		CreatedAt:       task.CreatedAt.Format("2006-01-02 15:04:05"),
 		FinishedAt:      task.FinishedAt,
+		StatusDurations: statusDurations,
 	}
 }
 

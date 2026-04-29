@@ -38,7 +38,18 @@ func (r *taskStatusLogRepository) FindLastLog(taskID uint) (*models.TaskStatusLo
 }
 
 func (r *taskStatusLogRepository) UpdateClockOut(logID uint, clockOut time.Time) error {
-	return config.DB.Model(&models.TaskStatusLog{}).Where("id = ?", logID).Update("clock_out", clockOut).Error
+	var log models.TaskStatusLog
+	if err := config.DB.First(&log, logID).Error; err != nil {
+		return err
+	}
+	if log.ClockIn.IsZero() {
+		return config.DB.Model(&models.TaskStatusLog{}).Where("id = ?", logID).Update("clock_out", clockOut).Error
+	}
+	duration := clockOut.Sub(log.ClockIn).Milliseconds()
+	return config.DB.Model(&models.TaskStatusLog{}).Where("id = ?", logID).Updates(map[string]interface{}{
+		"clock_out": clockOut,
+		"duration":  duration,
+	}).Error
 }
 
 func (r *taskStatusLogRepository) GetLogsByTaskID(taskID uint) ([]models.TaskStatusLog, error) {

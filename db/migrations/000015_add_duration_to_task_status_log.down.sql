@@ -1,0 +1,1 @@
+ALTER TABLE `task_status_logs` DROP COLUMN `duration`;
