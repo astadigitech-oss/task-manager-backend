@@ -25,6 +25,7 @@ type TaskResponse struct {
 	CreatedAt       string               `json:"created_at"`
 	FinishedAt      *time.Time           `json:"finished_at"`
 	StatusDurations map[string]int64     `json:"status_durations"`
+	HasBeenPending  bool                 `json:"has_been_pending"`
 }
 
 type SimpleTaskResponse struct {
@@ -119,6 +120,7 @@ func ToTaskResponse(task *models.Task) TaskResponse {
 		CreatedAt:       task.CreatedAt.Format("2006-01-02 15:04:05"),
 		FinishedAt:      task.FinishedAt,
 		StatusDurations: statusDurations,
+		HasBeenPending:  task.HasBeenPending,
 	}
 }
 

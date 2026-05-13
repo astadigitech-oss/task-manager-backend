@@ -194,6 +194,11 @@ func (s *taskService) UpdateTask(taskID uint, updates map[string]interface{}, wo
 		if err != nil {
 			return err
 		}
+
+		// Set has_been_pending flag jika status berubah menjadi "pending"
+		if strings.ToLower(newStatus) == "pending" && !existingTask.HasBeenPending {
+			finalUpdates["has_been_pending"] = true
+		}
 	}
 
 	if status, ok := finalUpdates["status"]; ok {

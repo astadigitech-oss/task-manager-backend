@@ -18,6 +18,7 @@ type Task struct {
 	FinishedAt      *time.Time    `json:"finished_at"`
 	Notes           *string       `json:"notes"`            // Notes yang diisi member, nullable
 	OverdueDuration time.Duration `json:"overdue_duration"` // Durasi keterlambatan penyelesaian tugas
+	HasBeenPending  bool          `json:"has_been_pending"` // Flag untuk menandai task pernah masuk status pending
 
 	Project   Project        `gorm:"foreignKey:ProjectID;constraint:OnDelete:CASCADE" json:"project"`
 	Members   []TaskUser     `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE" json:"members"`
